@@ -1,0 +1,25 @@
+.message {
+  justify-content: space-around;
+  width: fit-content;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  color: white;
+  font-weight: 700;
+  border-radius: 1rem;
+}
+
+.info {
+  background-color: #2196f3;
+}
+
+.success {
+  background-color: #04aa6d;
+}
+
+.warning {
+  background-color: #ff9800;
+}
+
+.error {
+  background-color: #f44336;
+}

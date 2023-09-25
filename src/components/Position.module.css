@@ -1,0 +1,41 @@
+.position {
+  display: flex;
+  height: 2rem;
+  width: 2rem;
+  border: 1px solid #ccc;
+  border-radius: 1rem;
+  box-sizing: border-box;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.outer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 3rem;
+  width: 3rem;
+}
+
+.inactive {
+  composes: position;
+  cursor: default;
+}
+.black {
+  composes: inactive;
+  color: white;
+  background-color: black;
+}
+
+.white {
+  composes: inactive;
+  color: black;
+  background-color: white;
+}
+
+.error {
+  composes: position;
+  background-color: yellow;
+}

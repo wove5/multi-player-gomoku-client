@@ -1,0 +1,32 @@
+[
+  {
+    "id": 5,
+    "rows": 5,
+    "posPerRow": 5
+  },
+  {
+    "id": 6,
+    "rows": 6,
+    "posPerRow": 6
+  },
+  {
+    "id": 7,
+    "rows": 7,
+    "posPerRow": 7
+  },
+  {
+    "id": 8,
+    "rows": 8,
+    "posPerRow": 8
+  },
+  {
+    "id": 9,
+    "rows": 9,
+    "posPerRow": 9
+  },
+  {
+    "id": 10,
+    "rows": 10,
+    "posPerRow": 10
+  }
+]

@@ -1,0 +1,43 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  grid-gap: 4rem;
+  width: 90%;
+  max-width: 800px;
+  margin: 2rem auto;
+}
+
+.inner-container {
+  display: flex;
+  flex-direction: column;
+  grid-gap: 1rem;
+}
+
+.loading-game-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1rem;
+  letter-spacing: 0.15rem;
+  font-weight: 500;
+}
+
+.loading-game-state:after {
+  clip-path: inset(0 3ch 0 0);
+  animation: x steps(4, end) 450ms infinite;
+  content: '\2026';
+}
+
+@keyframes x {
+  to {
+    clip-path: inset(0 -1ch 0 0);
+  }
+}
+
+.loading-game-result {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1rem;
+  font-weight: 500;
+}

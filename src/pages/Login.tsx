@@ -1,0 +1,103 @@
+import { useState, useContext, useEffect, useRef, ChangeEvent } from 'react';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Button, Input, Message } from '../components';
+import { UserContext } from '../context';
+
+import style from './Login.module.css';
+import { CreateGameInfo, GameInfo } from '../types';
+import { post } from '../utils/http';
+
+export default function Login() {
+  const { state } = useLocation();
+  const boardSize = state ? state.boardSize : null;
+  const { login, user } = useContext(UserContext);
+  const usernameInput = useRef<HTMLInputElement | null>(null);
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loadingGame, setLoadingGame] = useState(false);
+
+  useEffect(() => {
+    if (usernameInput.current) {
+      usernameInput.current.focus();
+    }
+  }, []);
+
+  const newGame = async (b: number[]) => {
+    const todaysDate = new Date().toLocaleString().split(',')[0];
+    const inputBody = { size: b, times: { start: todaysDate, end: '' } };
+    try {
+      setLoadingGame(true);
+      const game = await post<CreateGameInfo, GameInfo>(`/api/`, inputBody);
+      return game;
+    } catch (err: any) {
+      setLoadingGame(false);
+      return undefined;
+    }
+  };
+
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    const { target } = event;
+    if (target.type === 'password') {
+      setPassword(target.value);
+    } else {
+      setUsername(target.value);
+    }
+    setErrorMessage('');
+  }
+
+  const handleLogin = async () => {
+    setErrorMessage('');
+    const result = await login(username, password);
+    if (result === true) {
+      if (!boardSize) {
+        navigate('/', { replace: true });
+      } else {
+        const createdGame: GameInfo | undefined = await newGame(boardSize);
+        if (!createdGame) navigate(`/`, { replace: true });
+        navigate(`/game/${createdGame?._id}`, {
+          state: { game: createdGame },
+          replace: true,
+        });
+      }
+    } else {
+      setErrorMessage(result);
+    }
+  };
+
+  return !user ? (
+    loadingGame ? (
+      <span className={style['loading-game-state']}>Creating game</span>
+    ) : (
+      <form
+        className={style.container}
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleLogin();
+        }}
+      >
+        {errorMessage && <Message variant="error" message={errorMessage} />}
+        <Input
+          ref={usernameInput}
+          name="username"
+          placeholder="Username"
+          value={username}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange(e)}
+        />
+        <Input
+          name="password"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange(e)}
+        />
+        <Button type="submit" disabled={!username || !password}>
+          Login
+        </Button>
+      </form>
+    )
+  ) : (
+    <Navigate to="/" replace={true} />
+  );
+}
