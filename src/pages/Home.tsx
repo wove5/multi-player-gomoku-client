@@ -1,4 +1,4 @@
-import { Button } from '../components';
+import { Button, SessionExpired } from '../components';
 import style from './Home.module.css';
 import Select, { ActionMeta, SingleValue, StylesConfig } from 'react-select';
 import { UserContext } from '../context';
@@ -114,6 +114,10 @@ export default function Home() {
     };
     populateIncompleteGamesDropDownBox();
   }, [user, logout]);
+
+  if (!user) {
+    return <SessionExpired styleName={style['loading-result']} />;
+  }
 
   return loadingGame ? (
     <span className={style['loading-game-state']}>Creating game</span>
