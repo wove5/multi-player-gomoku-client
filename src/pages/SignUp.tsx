@@ -6,6 +6,7 @@ import { UserContext } from '../context';
 import style from './SignUp.module.css';
 import { CreateGameInfo, GameInfo } from '../types';
 import { post } from '../utils/http';
+import { API_HOST } from '../constants';
 
 export default function SignUp() {
   const { state } = useLocation();
@@ -21,7 +22,10 @@ export default function SignUp() {
     const todaysDate = new Date().toLocaleString().split(',')[0];
     const inputBody = { size: b, times: { start: todaysDate, end: '' } };
     try {
-      const game = await post<CreateGameInfo, GameInfo>(`/api/`, inputBody);
+      const game = await post<CreateGameInfo, GameInfo>(
+        `${API_HOST}/api/`,
+        inputBody
+      );
       return game;
     } catch (err: any) {
       return undefined;

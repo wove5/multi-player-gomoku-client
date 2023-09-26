@@ -2,7 +2,7 @@ import style from './GameLog.module.css';
 import { PageNotFound, Position, SessionExpired } from '../components';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { GameContext, UserContext } from '../context';
-import { GAMESTATUS } from '../constants';
+import { API_HOST, GAMESTATUS } from '../constants';
 import { useNavigate, useParams } from 'react-router-dom';
 import { GameInfo } from '../types';
 import { CompletedGameData } from '../interfaces';
@@ -21,13 +21,15 @@ export default function GameLog() {
   const fetchGameBoard = useCallback(async () => {
     try {
       setLoading(true);
-      const completedGames = await get<CompletedGameData[]>('/api/games');
+      const completedGames = await get<CompletedGameData[]>(
+        `${API_HOST}/api/games`
+      );
       if (completedGames && !completedGames.find((g) => g._id === gameId)) {
         setLoading(false);
         setLoadingResultDetermined(true);
         return;
       }
-      const result = await get<GameInfo>(`/api/game/${gameId}`);
+      const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
       setGame(result);
       setLoading(false);
       setLoadingResultDetermined(true);

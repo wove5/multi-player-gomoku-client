@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { GameContext, UserContext } from '../context';
 import style from './Games.module.css';
-import { GAMESTATUS } from '../constants';
+import { API_HOST, GAMESTATUS } from '../constants';
 import { useNavigate } from 'react-router-dom';
 import { CompletedGameData } from '../interfaces';
 import { get } from '../utils/http';
@@ -19,7 +19,7 @@ export default function Games() {
   const fetchGames = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await get<CompletedGameData[]>('/api/games');
+      const result = await get<CompletedGameData[]>(`${API_HOST}/api/games`);
       setCompletedGames(result);
       setLoading(false);
       setLoadingResultDetermined(true);

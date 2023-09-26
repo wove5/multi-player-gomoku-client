@@ -6,6 +6,7 @@ import { UserContext } from '../context';
 import style from './Login.module.css';
 import { CreateGameInfo, GameInfo } from '../types';
 import { post } from '../utils/http';
+import { API_HOST } from '../constants';
 
 export default function Login() {
   const { state } = useLocation();
@@ -29,7 +30,10 @@ export default function Login() {
     const inputBody = { size: b, times: { start: todaysDate, end: '' } };
     try {
       setLoadingGame(true);
-      const game = await post<CreateGameInfo, GameInfo>(`/api/`, inputBody);
+      const game = await post<CreateGameInfo, GameInfo>(
+        `${API_HOST}/api/`,
+        inputBody
+      );
       return game;
     } catch (err: any) {
       setLoadingGame(false);

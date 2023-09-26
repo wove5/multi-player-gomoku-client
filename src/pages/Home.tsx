@@ -8,6 +8,7 @@ import boards from '../data/boards.json';
 import { get, post } from '../utils/http';
 import { IncompleteGameData } from '../interfaces';
 import { CreateGameInfo, GameInfo } from '../types';
+import { API_HOST } from '../constants';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -58,7 +59,10 @@ export default function Home() {
     const inputBody = { size: b };
     try {
       setLoadingGame(true);
-      const game = await post<CreateGameInfo, GameInfo>(`/api/`, inputBody);
+      const game = await post<CreateGameInfo, GameInfo>(
+        `${API_HOST}/api/`,
+        inputBody
+      );
       return game;
     } catch (err: any) {
       setLoadingGame(false);
@@ -74,7 +78,7 @@ export default function Home() {
       } else {
         try {
           setLoadingActiveGames(true);
-          const result = await get<IncompleteGameData[]>('/api');
+          const result = await get<IncompleteGameData[]>(`${API_HOST}/api`);
           setGameOptions(
             result.map((g) => ({
               value: g._id,

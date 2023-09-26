@@ -2,7 +2,7 @@ import style from './Game.module.css';
 import { Message, PageNotFound, Position, SessionExpired } from '../components';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { GameContext, UserContext } from '../context';
-import { POSITION_STATUS, GAMESTATUS } from '../constants';
+import { POSITION_STATUS, GAMESTATUS, API_HOST } from '../constants';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { del, get, put } from '../utils/http';
 import { GameInfo, ResetGame, UpdateGame } from '../types';
@@ -31,13 +31,15 @@ export default function Game() {
 
   const fetchGameBoard = useCallback(async () => {
     try {
-      const incompleteGames = await get<IncompleteGameData[]>('/api');
+      const incompleteGames = await get<IncompleteGameData[]>(
+        `${API_HOST}/api`
+      );
       if (incompleteGames && !incompleteGames.find((g) => g._id === gameId)) {
         setLoading(false);
         setLoadingResultDetermined(true);
         return;
       }
-      const result = await get<GameInfo>(`/api/game/${gameId}`);
+      const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
       setGame(result);
       setLoading(false);
       setLoadingResultDetermined(true);
@@ -137,9 +139,12 @@ export default function Game() {
     });
     try {
       // update game in db
-      const result = await put<UpdateGame, GameStatus>(`/api/game/${gameId}`, {
-        id: id,
-      });
+      const result = await put<UpdateGame, GameStatus>(
+        `${API_HOST}/api/game/${gameId}`,
+        {
+          id: id,
+        }
+      );
       if (result.status !== GAMESTATUS.ACTIVE) {
         setGame({
           ...game,
@@ -187,9 +192,12 @@ export default function Game() {
   const resetGame = async () => {
     try {
       setErrorMessage('');
-      const result = await put<ResetGame, GameInfo>(`/api/game/${gameId}`, {
-        status: POSITION_STATUS.NONE,
-      });
+      const result = await put<ResetGame, GameInfo>(
+        `${API_HOST}/api/game/${gameId}`,
+        {
+          status: POSITION_STATUS.NONE,
+        }
+      );
       setGame(result);
       setPlayer(POSITION_STATUS.BLACK);
     } catch (err: any) {
@@ -200,7 +208,7 @@ export default function Game() {
   const deleteGame = async () => {
     try {
       setErrorMessage('');
-      await del(`/api/game/${gameId}`);
+      await del(`${API_HOST}/api/game/${gameId}`);
     } catch (err: any) {
       setErrorMessage(err.message);
     }
