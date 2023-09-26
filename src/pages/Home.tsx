@@ -63,10 +63,19 @@ export default function Home() {
         `${API_HOST}/api/`,
         inputBody
       );
+      setLoadingGame(false);
       return game;
     } catch (err: any) {
       setLoadingGame(false);
       setLoadingGameResult(null);
+      if (
+        err.message === 'Invalid token' ||
+        err.message === 'Token missing' ||
+        err.message === 'Invalid user'
+      ) {
+        console.log(`err.message = ${err.message}`);
+        logout();
+      }
       return undefined;
     }
   };
