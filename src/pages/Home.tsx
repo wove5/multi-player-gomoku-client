@@ -120,7 +120,7 @@ export default function Home() {
   return loadingGame ? (
     <span className={style['loading-game-state']}>Creating game</span>
   ) : !user ? (
-    <SessionExpired styleName={style['loading-result']} />
+    <SessionExpired styleName={style.expired} />
   ) : (
     <div className={style.container}>
       <div className={style['inner-container']}>
