@@ -115,12 +115,10 @@ export default function Home() {
     populateIncompleteGamesDropDownBox();
   }, [user, logout]);
 
-  if (!user) {
-    return <SessionExpired styleName={style['loading-result']} />;
-  }
-
   return loadingGame ? (
     <span className={style['loading-game-state']}>Creating game</span>
+  ) : !user ? (
+    <SessionExpired styleName={style['loading-result']} />
   ) : (
     <div className={style.container}>
       <div className={style['inner-container']}>
