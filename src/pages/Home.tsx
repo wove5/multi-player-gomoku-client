@@ -66,8 +66,7 @@ export default function Home() {
       setLoadingGame(false);
       return game;
     } catch (err: any) {
-      setLoadingGame(false);
-      setLoadingGameResult(null);
+      console.log(`user = ${user}`);
       if (
         err.message === 'Invalid token' ||
         err.message === 'Token missing' ||
@@ -76,6 +75,9 @@ export default function Home() {
         console.log(`err.message = ${err.message}`);
         logout();
       }
+      console.log(`user = ${user}`);
+      setLoadingGame(false);
+      setLoadingGameResult(null);
       return undefined;
     }
   };
