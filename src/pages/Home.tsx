@@ -1,4 +1,4 @@
-import { Button, SessionExpired } from '../components';
+import { Button, Message, SessionExpired } from '../components';
 import style from './Home.module.css';
 import Select, { ActionMeta, SingleValue, StylesConfig } from 'react-select';
 import { UserContext } from '../context';
@@ -26,9 +26,8 @@ export default function Home() {
   });
 
   const [loadingGame, setLoadingGame] = useState(false);
-  const [loadingGameResult, setLoadingGameResult] = useState<undefined | null>(
-    undefined
-  );
+  const [attemptGameLoad, setAttemptGameLoad] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [loadingActiveGames, setLoadingActiveGames] = useState(false);
 
   interface BoardOption {
@@ -59,11 +58,13 @@ export default function Home() {
     const inputBody = { size: b };
     try {
       setLoadingGame(true);
+      setAttemptGameLoad(true);
       const game = await post<CreateGameInfo, GameInfo>(
         `${API_HOST}/api/`,
         inputBody
       );
       setLoadingGame(false);
+      setAttemptGameLoad(false);
       return game;
     } catch (err: any) {
       console.log(`user = ${user}`);
@@ -77,7 +78,6 @@ export default function Home() {
       }
       console.log(`user = ${user}`);
       setLoadingGame(false);
-      setLoadingGameResult(null);
       return undefined;
     }
   };
@@ -110,6 +110,10 @@ export default function Home() {
             err.message === 'Invalid user'
           ) {
             logout();
+          } else {
+            setErrorMessage(
+              'Cannot retrieve games - server or network problem. Try again later'
+            );
           }
         }
       }
@@ -117,10 +121,12 @@ export default function Home() {
     populateIncompleteGamesDropDownBox();
   }, [user, logout]);
 
+  if (!user) {
+    return <SessionExpired styleName={style.expired} />;
+  }
+
   return loadingGame ? (
     <span className={style['loading-game-state']}>Creating game</span>
-  ) : !user ? (
-    <SessionExpired styleName={style.expired} />
   ) : (
     <div className={style.container}>
       <div className={style['inner-container']}>
@@ -154,13 +160,14 @@ export default function Home() {
             newValue: SingleValue<{ value: number[]; label: string }>,
             actionMeta: ActionMeta<{ value: number[]; label: string }>
           ) => {
-            setLoadingGameResult(undefined);
+            setErrorMessage('');
+            setAttemptGameLoad(false);
             setSelectedBoard(newValue);
           }}
         />
-        {loadingGameResult === null && (
+        {attemptGameLoad && user && (
           <span className={style['loading-game-result']}>
-            Failed to create game - server problem. Try again later
+            Failed to create game - server or network problem. Try again later
           </span>
         )}
       </div>
@@ -191,12 +198,18 @@ export default function Home() {
                 newValue: SingleValue<GameOption>,
                 actionMeta: ActionMeta<GameOption>
               ) => {
-                setLoadingGameResult(undefined);
+                setAttemptGameLoad(false);
+                setErrorMessage('');
                 setSelectedGame(newValue);
               }}
             />
           </div>
         )
+      )}
+      {errorMessage && (
+        <div className={style['error-message']}>
+          {<Message variant="error" message={errorMessage} />}
+        </div>
       )}
     </div>
   );
