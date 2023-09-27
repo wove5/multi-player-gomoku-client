@@ -14,16 +14,19 @@ export default function Games() {
 
   const [completedGames, setCompletedGames] = useState<CompletedGameData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingResultDetermined, setLoadingResultDetermined] = useState(false);
+  const [noGamesFound, setNoGamesFound] = useState(false);
 
   const fetchGames = useCallback(async () => {
     try {
       setLoading(true);
       const result = await get<CompletedGameData[]>(`${API_HOST}/api/games`);
+      // a custom handler in games API returns a 404 Not Found if no games found
       setCompletedGames(result);
       setLoading(false);
-      setLoadingResultDetermined(true);
     } catch (err: any) {
+      console.log(`err.message = ${err.message}`);
+      console.log(`err.status = ${err.status}`);
+      console.log(`err = ${err}`);
       setCompletedGames([]);
       setLoading(false);
       if (
@@ -32,6 +35,8 @@ export default function Games() {
         err.message === 'Invalid user'
       ) {
         logout();
+      } else if (err.message === 'Not Found') {
+        setNoGamesFound(true);
       }
     }
   }, [logout]);
@@ -40,20 +45,18 @@ export default function Games() {
     fetchGames();
   }, [fetchGames]);
 
-  if (!user)
-    // return <Navigate to="/login" replace state={{ boardSize: null }} />;
-    return <SessionExpired styleName={style['loading-result']} />;
+  if (!user) return <SessionExpired styleName={style['loading-result']} />;
 
   if (completedGames.length === 0) {
     if (loading) {
       return (
         <span className={style['loading-games-state']}>Retrieving games</span>
       );
-    } else if (loadingResultDetermined) {
+    } else if (noGamesFound) {
       return (
         <PageNotFound
           previousPath={previousPath}
-          message="No games not found"
+          message="No completed games found"
         />
       );
     } else {

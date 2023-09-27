@@ -29,6 +29,7 @@ export default function Home() {
   const [attemptGameLoad, setAttemptGameLoad] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loadingActiveGames, setLoadingActiveGames] = useState(false);
+  const [tokenExpiredFlag, setTokenExpiredFlag] = useState(false);
 
   interface BoardOption {
     value: number[];
@@ -75,6 +76,7 @@ export default function Home() {
       ) {
         console.log(`err.message = ${err.message}`);
         logout();
+        setTokenExpiredFlag(true);
       }
       console.log(`user = ${user}`);
       setLoadingGame(false);
@@ -110,6 +112,7 @@ export default function Home() {
             err.message === 'Invalid user'
           ) {
             logout();
+            setTokenExpiredFlag(true);
           } else {
             setErrorMessage(
               'Cannot retrieve games - server or network problem. Try again later'
@@ -121,7 +124,7 @@ export default function Home() {
     populateIncompleteGamesDropDownBox();
   }, [user, logout]);
 
-  if (!user) {
+  if (tokenExpiredFlag) {
     return <SessionExpired styleName={style.expired} />;
   }
 
