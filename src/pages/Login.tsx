@@ -70,38 +70,36 @@ export default function Login() {
     }
   };
 
-  return !user ? (
-    loadingGame ? (
-      <span className={style['loading-game-state']}>Creating game</span>
-    ) : (
-      <form
-        className={style.container}
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleLogin();
-        }}
-      >
-        {errorMessage && <Message variant="error" message={errorMessage} />}
-        <Input
-          ref={usernameInput}
-          name="username"
-          placeholder="Username"
-          value={username}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange(e)}
-        />
-        <Input
-          name="password"
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange(e)}
-        />
-        <Button type="submit" disabled={!username || !password}>
-          Login
-        </Button>
-      </form>
-    )
-  ) : (
+  return loadingGame ? (
+    <span className={style['loading-game-state']}>Creating game</span>
+  ) : user ? (
     <Navigate to="/" replace={true} />
+  ) : (
+    <form
+      className={style.container}
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleLogin();
+      }}
+    >
+      {errorMessage && <Message variant="error" message={errorMessage} />}
+      <Input
+        ref={usernameInput}
+        name="username"
+        placeholder="Username"
+        value={username}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange(e)}
+      />
+      <Input
+        name="password"
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange(e)}
+      />
+      <Button type="submit" disabled={!username || !password}>
+        Login
+      </Button>
+    </form>
   );
 }
