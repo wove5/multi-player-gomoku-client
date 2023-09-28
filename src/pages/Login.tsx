@@ -52,21 +52,30 @@ export default function Login() {
   }
 
   const handleLogin = async () => {
-    setErrorMessage('');
-    const result = await login(username, password);
-    if (result === true) {
-      if (!boardSize) {
-        navigate('/', { replace: true });
-      } else {
-        const createdGame: GameInfo | undefined = await newGame(boardSize);
-        if (!createdGame) navigate(`/`, { replace: true });
-        navigate(`/game/${createdGame?._id}`, {
-          state: { game: createdGame },
-          replace: true,
-        });
-      }
-    } else {
-      setErrorMessage(result);
+    try {
+      setErrorMessage('');
+      const result = await login(username, password);
+      if (result === true) {
+        if (!boardSize) {
+          navigate('/', { replace: true });
+        } else {
+          try {
+            const createdGame: GameInfo | undefined = await newGame(boardSize);
+            if (!createdGame) {
+              navigate(`/`, { replace: true });
+            } else {
+              navigate(`/game/${createdGame._id}`, {
+                state: { game: createdGame },
+                replace: true,
+              });
+            }
+          } catch (e: any) {
+            navigate(`/`, { replace: true });
+          }
+        }
+      } else throw new Error(result); // result will be a string here
+    } catch (err: any) {
+      setErrorMessage(err.message);
     }
   };
 
