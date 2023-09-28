@@ -11,7 +11,11 @@ import { GameStatus } from '../types/GameStatus';
 
 export default function Game() {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  // const { state } = useLocation();
+  // need to make use of location object in useEffect.
+  const location = useLocation();
+  // state will only be allocated from Home page on first programmatic nav to this page
+  const state = location.state;
 
   const { user, logout } = useContext(UserContext);
   const { previousPath } = useContext(GameContext);
@@ -22,7 +26,22 @@ export default function Game() {
     state === null ? undefined : state.game
   );
 
-  const [player, setPlayer] = useState<POSITION_STATUS>(POSITION_STATUS.BLACK);
+  // infer player from game if loaded via state, otherwise, just set to BLACK for now - it is set again in useEffect
+  const [player, setPlayer] = useState<POSITION_STATUS>(
+    state === null
+      ? POSITION_STATUS.BLACK
+      : () => {
+          const currentBoardPositions = state.game.positions;
+          const selectedPositionNumbers = state.game.selectedPositions;
+          const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
+          return lastSelectedPositionNumber.length === 0
+            ? POSITION_STATUS.BLACK
+            : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
+              POSITION_STATUS.BLACK
+            ? POSITION_STATUS.WHITE
+            : POSITION_STATUS.BLACK;
+        }
+  );
 
   const [loading, setLoading] = useState(true);
   const [loadingResultDetermined, setLoadingResultDetermined] = useState(false);
@@ -68,8 +87,12 @@ export default function Game() {
   }, [logout, gameId]);
 
   useEffect(() => {
-    if (!game) fetchGameBoard();
-  }, [game, fetchGameBoard]);
+    // clear the state object inside history object so any reload/direct-nav's will pull game from API
+    navigate(location.pathname, { replace: true });
+    // any page reload or direct nav will set game to undefined via useState hook, so fetchGameBoard is triggered
+    if (!game) fetchGameBoard(); // run conditionally, otherwise, infinite loop results.
+    // if game hadn't been preloaded via react router state, fetchGameBoard will set player correctly
+  }, [game, fetchGameBoard, navigate, location.pathname]);
 
   if (!user) {
     return <SessionExpired styleName={style['loading-result']} />;

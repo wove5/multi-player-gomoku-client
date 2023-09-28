@@ -25,8 +25,10 @@ export default function Home() {
     label: '',
   });
 
-  const [loadingGame, setLoadingGame] = useState(false);
-  const [attemptGameLoad, setAttemptGameLoad] = useState(false);
+  const [creatingGame, setCreatingGame] = useState(false);
+  const [retrievingGame, setRetrievingGame] = useState(false);
+  const [attemptGameCreation, setAttemptGameCreation] = useState(false);
+  const [attemptGameRetrieval, setAttemptGameRetrieval] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loadingActiveGames, setLoadingActiveGames] = useState(false);
   const [tokenExpiredFlag, setTokenExpiredFlag] = useState(false);
@@ -58,14 +60,14 @@ export default function Home() {
   const newGame = async (b: number[]) => {
     const inputBody = { size: b };
     try {
-      setLoadingGame(true);
-      setAttemptGameLoad(true);
+      setCreatingGame(true);
+      setAttemptGameCreation(true);
       const game = await post<CreateGameInfo, GameInfo>(
         `${API_HOST}/api/`,
         inputBody
       );
-      setLoadingGame(false);
-      setAttemptGameLoad(false);
+      setCreatingGame(false);
+      setAttemptGameCreation(false);
       return game;
     } catch (err: any) {
       console.log(`user = ${user}`);
@@ -79,7 +81,29 @@ export default function Home() {
         setTokenExpiredFlag(true);
       }
       console.log(`user = ${user}`);
-      setLoadingGame(false);
+      setCreatingGame(false);
+      return undefined;
+    }
+  };
+
+  const retrieveGame = async (gameId: string) => {
+    try {
+      setRetrievingGame(true);
+      setAttemptGameRetrieval(true);
+      const game = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
+      setRetrievingGame(false);
+      setAttemptGameRetrieval(false);
+      return game;
+    } catch (err: any) {
+      if (
+        err.message === 'Invalid token' ||
+        err.message === 'Token missing' ||
+        err.message === 'Invalid user'
+      ) {
+        logout();
+        setTokenExpiredFlag(true);
+      }
+      setRetrievingGame(false);
       return undefined;
     }
   };
@@ -128,8 +152,10 @@ export default function Home() {
     return <SessionExpired styleName={style.expired} />;
   }
 
-  return loadingGame ? (
+  return creatingGame ? (
     <span className={style['loading-game-state']}>Creating game</span>
+  ) : retrievingGame ? (
+    <span className={style['loading-game-state']}>Retrieving game</span>
   ) : (
     <div className={style.container}>
       <div className={style['inner-container']}>
@@ -164,11 +190,12 @@ export default function Home() {
             actionMeta: ActionMeta<{ value: number[]; label: string }>
           ) => {
             setErrorMessage('');
-            setAttemptGameLoad(false);
+            setAttemptGameCreation(false);
+            setAttemptGameRetrieval(false);
             setSelectedBoard(newValue);
           }}
         />
-        {attemptGameLoad && user && (
+        {attemptGameCreation && user && (
           <span className={style['loading-game-result']}>
             Failed to create game - server or network problem. Try again later
           </span>
@@ -183,11 +210,19 @@ export default function Home() {
           <div className={style['inner-container']}>
             <Button
               type="submit"
-              onClick={(e) => {
+              onClick={async (e) => {
                 if (!selectedGame || selectedGame.value === '') {
                   e.preventDefault();
                 } else {
-                  navigate(`/game/${selectedGame.value}`);
+                  // navigate(`/game/${selectedGame.value}`);
+                  // alternatively - get game in Home page, then pass to Game page
+                  const gameRetrieved: GameInfo | undefined =
+                    await retrieveGame(selectedGame.value);
+                  if (gameRetrieved) {
+                    navigate(`/game/${gameRetrieved._id}`, {
+                      state: { game: gameRetrieved },
+                    });
+                  }
                 }
               }}
             >
@@ -201,11 +236,18 @@ export default function Home() {
                 newValue: SingleValue<GameOption>,
                 actionMeta: ActionMeta<GameOption>
               ) => {
-                setAttemptGameLoad(false);
+                setAttemptGameCreation(false);
+                setAttemptGameRetrieval(false);
                 setErrorMessage('');
                 setSelectedGame(newValue);
               }}
             />
+            {attemptGameRetrieval && user && (
+              <span className={style['loading-game-result']}>
+                Failed to retrieve game - server or network problem. Try again
+                later
+              </span>
+            )}
           </div>
         )
       )}
