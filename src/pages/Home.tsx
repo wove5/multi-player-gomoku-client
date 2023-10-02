@@ -18,7 +18,9 @@ export default function Home() {
     value: string;
     label: string;
   }
-  const [gameOptions, setGameOptions] = useState<GameOption[]>([]);
+  const [incompleteGameOptions, setIncompleteGameOptions] = useState<
+    GameOption[]
+  >([]);
 
   const [selectedGame, setSelectedGame] = useState<SingleValue<GameOption>>({
     value: '',
@@ -111,12 +113,12 @@ export default function Home() {
   useEffect(() => {
     const populateIncompleteGamesDropDownBox = async () => {
       if (!user) {
-        setGameOptions([]);
+        setIncompleteGameOptions([]);
       } else {
         try {
           setLoadingActiveGames(true);
           const result = await get<IncompleteGameData[]>(`${API_HOST}/api`);
-          setGameOptions(
+          setIncompleteGameOptions(
             result.map((g) => ({
               value: g._id,
               label: `game-${g.gameNumber} (${g.size[0]}x${
@@ -129,7 +131,7 @@ export default function Home() {
           setLoadingActiveGames(false);
         } catch (err: any) {
           setLoadingActiveGames(false);
-          setGameOptions([]);
+          setIncompleteGameOptions([]);
           if (
             err.message === 'Invalid token' ||
             err.message === 'Token missing' ||
@@ -206,7 +208,7 @@ export default function Home() {
           Finding active games
         </span>
       ) : (
-        gameOptions.length > 0 && (
+        incompleteGameOptions.length > 0 && (
           <div className={style['inner-container']}>
             <Button
               type="submit"
@@ -230,7 +232,7 @@ export default function Home() {
             </Button>
             <Select
               styles={optionStyle}
-              options={gameOptions}
+              options={incompleteGameOptions}
               placeholder="Select a game"
               onChange={(
                 newValue: SingleValue<GameOption>,
