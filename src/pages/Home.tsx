@@ -140,9 +140,15 @@ export default function Home() {
               .map((g) => ({
                 value: g._id,
                 label: `game-${g.gameNumber} (${g.size[0]}x${g.size[1]} ${
-                  g.isMulti ? 'multi-player game' : 'Single-player game'
+                  g.isMulti ? 'multi-player' : 'Single-player'
                 }) started: ${
                   new Date(g.createdAt).toLocaleString().split(',')[0]
+                } ${
+                  g.isMulti && g.players.length > 1
+                    ? `(opponent: ${
+                        g.users.filter((p) => p.userId !== user._id)[0].username
+                      })`
+                    : ''
                 }`,
               }))
           );
@@ -160,7 +166,7 @@ export default function Home() {
                   g.size[1]
                 } multi-player) started: ${
                   new Date(g.createdAt).toLocaleString().split(',')[0]
-                }`,
+                } (opponent: ${g.users[0].username})`,
               }))
           );
           setLoadingActiveGames(false);

@@ -7,4 +7,5 @@ export interface IncompleteGameData {
   isMulti: boolean;
   createdAt: Date;
   players: { userId: string; color: PLAYER }[];
+  users: { userId: string; username: string }[];
 }
