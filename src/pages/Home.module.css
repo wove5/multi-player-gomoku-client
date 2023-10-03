@@ -7,6 +7,12 @@
   margin: 2rem auto;
 }
 
+.interim-container {
+  display: flex;
+  flex-direction: column;
+  grid-gap: 2rem;
+}
+
 .inner-container {
   display: flex;
   flex-direction: column;

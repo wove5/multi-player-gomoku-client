@@ -1,4 +1,4 @@
-import { POSITION_STATUS } from '../constants';
+import { POSITION_STATUS, ACTION } from '../constants';
 
 export interface UpdateGame {
   id: string;
@@ -6,4 +6,8 @@ export interface UpdateGame {
 
 export interface ResetGame {
   status: POSITION_STATUS.NONE;
+}
+
+export interface JoinGame {
+  action: ACTION;
 }

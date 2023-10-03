@@ -5,10 +5,10 @@ import { UserContext } from '../context';
 import { useNavigate } from 'react-router';
 import { useContext, useEffect, useState } from 'react';
 import boards from '../data/boards.json';
-import { get, post } from '../utils/http';
+import { get, post, put } from '../utils/http';
 import { IncompleteGameData } from '../interfaces';
-import { CreateGameInfo, GameInfo } from '../types';
-import { API_HOST } from '../constants';
+import { CreateGameInfo, GameInfo, JoinGame } from '../types';
+import { API_HOST, ACTION } from '../constants';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -23,6 +23,17 @@ export default function Home() {
   >([]);
 
   const [selectedGame, setSelectedGame] = useState<SingleValue<GameOption>>({
+    value: '',
+    label: '',
+  });
+
+  const [multiPlayerGameOptions, setMultiPlayerGameOptions] = useState<
+    GameOption[]
+  >([]);
+
+  const [selectedMultiGame, setSelectedMultiGame] = useState<
+    SingleValue<GameOption>
+  >({
     value: '',
     label: '',
   });
@@ -88,11 +99,16 @@ export default function Home() {
     }
   };
 
-  const retrieveGame = async (gameId: string) => {
+  const retrieveGame = async (gameId: string, action: ACTION) => {
     try {
       setRetrievingGame(true);
       setAttemptGameRetrieval(true);
-      const game = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
+      const game =
+        action === ACTION.RESUME
+          ? await get<GameInfo>(`${API_HOST}/api/game/${gameId}`)
+          : await put<JoinGame, GameInfo>(`${API_HOST}/api/game/${gameId}`, {
+              action: action,
+            });
       setRetrievingGame(false);
       setAttemptGameRetrieval(false);
       return game;
@@ -111,7 +127,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const populateIncompleteGamesDropDownBox = async () => {
+    const populateDropDownBoxes = async () => {
       if (!user) {
         setIncompleteGameOptions([]);
       } else {
@@ -119,14 +135,33 @@ export default function Home() {
           setLoadingActiveGames(true);
           const result = await get<IncompleteGameData[]>(`${API_HOST}/api`);
           setIncompleteGameOptions(
-            result.map((g) => ({
-              value: g._id,
-              label: `game-${g.gameNumber} (${g.size[0]}x${
-                g.size[1]
-              }) started: ${
-                new Date(g.createdAt).toLocaleString().split(',')[0]
-              }`,
-            }))
+            result
+              .filter((g) => g.players.map((p) => p.userId).includes(user._id)) //g.players[0].userId === user._id)
+              .map((g) => ({
+                value: g._id,
+                label: `game-${g.gameNumber} (${g.size[0]}x${g.size[1]} ${
+                  g.isMulti ? 'multi-player game' : 'Single-player game'
+                }) started: ${
+                  new Date(g.createdAt).toLocaleString().split(',')[0]
+                }`,
+              }))
+          );
+          setMultiPlayerGameOptions(
+            result
+              .filter(
+                (g) =>
+                  g.isMulti &&
+                  g.players.length === 1 &&
+                  g.players[0].userId !== user._id
+              )
+              .map((g) => ({
+                value: g._id,
+                label: `game-${g.gameNumber} (${g.size[0]}x${
+                  g.size[1]
+                } multi-player) started: ${
+                  new Date(g.createdAt).toLocaleString().split(',')[0]
+                }`,
+              }))
           );
           setLoadingActiveGames(false);
         } catch (err: any) {
@@ -147,7 +182,8 @@ export default function Home() {
         }
       }
     };
-    populateIncompleteGamesDropDownBox();
+
+    populateDropDownBoxes();
   }, [user, logout]);
 
   if (tokenExpiredFlag) {
@@ -208,50 +244,94 @@ export default function Home() {
           Finding active games
         </span>
       ) : (
-        incompleteGameOptions.length > 0 && (
-          <div className={style['inner-container']}>
-            <Button
-              type="submit"
-              onClick={async (e) => {
-                if (!selectedGame || selectedGame.value === '') {
-                  e.preventDefault();
-                } else {
-                  // navigate(`/game/${selectedGame.value}`);
-                  // alternatively - get game in Home page, then pass to Game page
-                  const gameRetrieved: GameInfo | undefined =
-                    await retrieveGame(selectedGame.value);
-                  if (gameRetrieved) {
-                    navigate(`/game/${gameRetrieved._id}`, {
-                      state: { game: gameRetrieved },
-                    });
+        <div className={style['interim-container']}>
+          {incompleteGameOptions.length > 0 && (
+            <div className={style['inner-container']}>
+              <Button
+                type="submit"
+                onClick={async (e) => {
+                  if (!selectedGame || selectedGame.value === '') {
+                    e.preventDefault();
+                  } else {
+                    // navigate(`/game/${selectedGame.value}`);
+                    // alternatively - get game in Home page, then pass to Game page
+                    const gameRetrieved: GameInfo | undefined =
+                      await retrieveGame(selectedGame.value, ACTION.RESUME);
+                    console.log(`gameRetrieved = ${gameRetrieved}`);
+                    if (gameRetrieved) {
+                      navigate(`/game/${gameRetrieved._id}`, {
+                        state: { game: gameRetrieved },
+                      });
+                    }
                   }
-                }
-              }}
-            >
-              Resume incomplete game
-            </Button>
-            <Select
-              styles={optionStyle}
-              options={incompleteGameOptions}
-              placeholder="Select a game"
-              onChange={(
-                newValue: SingleValue<GameOption>,
-                actionMeta: ActionMeta<GameOption>
-              ) => {
-                setAttemptGameCreation(false);
-                setAttemptGameRetrieval(false);
-                setErrorMessage('');
-                setSelectedGame(newValue);
-              }}
-            />
-            {attemptGameRetrieval && user && (
-              <span className={style['loading-game-result']}>
-                Failed to retrieve game - server or network problem. Try again
-                later
-              </span>
-            )}
-          </div>
-        )
+                }}
+              >
+                Resume incomplete game
+              </Button>
+              <Select
+                styles={optionStyle}
+                options={incompleteGameOptions}
+                placeholder="Select a game"
+                onChange={(
+                  newValue: SingleValue<GameOption>,
+                  actionMeta: ActionMeta<GameOption>
+                ) => {
+                  setAttemptGameCreation(false);
+                  setAttemptGameRetrieval(false);
+                  setErrorMessage('');
+                  console.log(`Change event; newValue= ${newValue?.value}`);
+                  setSelectedGame(newValue);
+                }}
+              />
+            </div>
+          )}
+          {multiPlayerGameOptions.length > 0 && (
+            <div className={style['inner-container']}>
+              <Button
+                type="submit"
+                onClick={async (e) => {
+                  if (!selectedMultiGame || selectedMultiGame.value === '') {
+                    e.preventDefault();
+                  } else {
+                    // navigate(`/game/${selectedGame.value}`);
+                    // alternatively - get game in Home page, then pass to Game page
+                    console.log(`submitting: ${selectedMultiGame.value}`);
+                    const gameRetrieved: GameInfo | undefined =
+                      await retrieveGame(selectedMultiGame.value, ACTION.JOIN);
+                    if (gameRetrieved) {
+                      navigate(`/game/${gameRetrieved._id}`, {
+                        state: { game: gameRetrieved },
+                      });
+                    }
+                  }
+                }}
+              >
+                Join another game
+              </Button>
+              <Select
+                styles={optionStyle}
+                options={multiPlayerGameOptions}
+                placeholder="Select a game"
+                onChange={(
+                  newValue: SingleValue<GameOption>,
+                  actionMeta: ActionMeta<GameOption>
+                ) => {
+                  setAttemptGameCreation(false);
+                  setAttemptGameRetrieval(false);
+                  setErrorMessage('');
+                  console.log(`Change event; newValue= ${newValue?.value}`);
+                  setSelectedMultiGame(newValue);
+                }}
+              />
+            </div>
+          )}
+          {attemptGameRetrieval && user && (
+            <span className={style['loading-game-result']}>
+              Failed to retrieve game - server or network problem. Try again
+              later
+            </span>
+          )}
+        </div>
       )}
       {errorMessage && (
         <div className={style['error-message']}>
