@@ -299,9 +299,12 @@ export default function Game() {
           <div className={style['control-buttons']}>
             {game.status === GAMESTATUS.ACTIVE && (
               <>
-                <button className={style.button} onClick={() => resetGame()}>
-                  Restart
-                </button>
+                {' '}
+                {game.players.length === 1 && (
+                  <button className={style.button} onClick={() => resetGame()}>
+                    Restart
+                  </button>
+                )}
                 <button className={style.button} onClick={() => navigate('/')}>
                   Pause
                 </button>
