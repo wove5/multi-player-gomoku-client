@@ -259,14 +259,35 @@ export default function Home() {
                   if (!selectedGame || selectedGame.value === '') {
                     e.preventDefault();
                   } else {
-                    // navigate(`/game/${selectedGame.value}`);
-                    // alternatively - get game in Home page, then pass to Game page
+                    // navigate(`/game/${selectedGame.value}`); // not using
+                    // get game in Home page, then pass to Game page
                     const gameRetrieved: GameInfo | undefined =
                       await retrieveGame(selectedGame.value, ACTION.RESUME);
-                    console.log(`gameRetrieved = ${gameRetrieved}`);
                     if (gameRetrieved) {
+                      // FYI: initial idea was for GameProvider to maintain player/user details
+                      // for subsequent display in header with data passed from Game component.
+                      // This changing of state in GameProvider was to occur during Game rendered,
+                      // however, it is not possible to update the state/ enqueue state updates
+                      // of other components from a component while it is rendering - these kind
+                      // of updates can only be done within an event handler of a component.
+                      // The first alternative idea was then to make the necessary update to
+                      // GameProvider from here via the click event to achieve the desired effect
+                      // of Header displaying the correct Users/Players details whenever Game
+                      // page component is loaded. This worked for page navigation, however,
+                      // page refreshing and direct navigation would loose the Users/Players info
+                      // displayed in the Header.
+                      // The third and successful idea was to rely on the Users/Players details
+                      // inside the game object, already being retrieved here and passed via
+                      // react-router's location.state container onto the Game component. It turns
+                      // out the location.state is also accessible to the Header component which
+                      // is displayed at the top of the Game page, as well as every other page.
+                      // TODO: This long commentary to be moved to a wiki page "design ideas" of the gh repo
+
                       navigate(`/game/${gameRetrieved._id}`, {
-                        state: { game: gameRetrieved },
+                        state: {
+                          game: gameRetrieved,
+                          gameBackup: gameRetrieved,
+                        },
                       });
                     }
                   }
@@ -306,7 +327,10 @@ export default function Home() {
                       await retrieveGame(selectedMultiGame.value, ACTION.JOIN);
                     if (gameRetrieved) {
                       navigate(`/game/${gameRetrieved._id}`, {
-                        state: { game: gameRetrieved },
+                        state: {
+                          game: gameRetrieved,
+                          gameBackup: gameRetrieved,
+                        },
                       });
                     }
                   }

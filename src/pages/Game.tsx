@@ -23,12 +23,19 @@ export default function Game() {
   const { gameId = '' } = useParams();
 
   const [game, setGame] = useState<GameInfo | undefined>(
-    state === null ? undefined : state.game
+    state === null || state.game === undefined ? undefined : state.game
+  );
+
+  // gameBackup will receive and pass on the Users/Players' details from location.state
+  const [gameBackup, setGameBackup] = useState<GameInfo | undefined>(
+    state === null || state.gameBackup === undefined
+      ? undefined
+      : state.gameBackup
   );
 
   // infer player from game if loaded via state, otherwise, just set to BLACK for now - it is set again in useEffect
   const [player, setPlayer] = useState<POSITION_STATUS>(
-    state === null
+    state === null || state.game === undefined
       ? POSITION_STATUS.BLACK
       : () => {
           const currentBoardPositions = state.game.positions;
@@ -60,6 +67,7 @@ export default function Game() {
       }
       const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
       setGame(result);
+      setGameBackup(result);
       setLoading(false);
       setLoadingResultDetermined(true);
       const currentBoardPositions = result.positions;
@@ -87,12 +95,17 @@ export default function Game() {
   }, [logout, gameId]);
 
   useEffect(() => {
-    // clear the state object inside history object so any reload/direct-nav's will pull game from API
-    navigate(location.pathname, { replace: true });
-    // any page reload or direct nav will set game to undefined via useState hook, so fetchGameBoard is triggered
-    if (!game) fetchGameBoard(); // run conditionally, otherwise, infinite loop results.
+    // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from state.game
+    // Hence, any page refreshes or direct-nav's will pull game data from server API & DB
+    // navigate(location.pathname, { replace: true }); // replacing this with the version below - need to maintain gameBackup
+    navigate(location.pathname, {
+      replace: true,
+      state: { gameBackup: gameBackup },
+    });
+    // a page reload or direct nav will set game to undefined via useState hook, so fetchGameBoard will be triggered
+    if (!game) fetchGameBoard(); // another reason to run this conditionally is to prevent an infinite loop occurring
     // if game hadn't been preloaded via react router state, fetchGameBoard will set player correctly
-  }, [game, fetchGameBoard, navigate, location.pathname]);
+  }, [game, fetchGameBoard, navigate, location.pathname, gameBackup]);
 
   if (!user) {
     return <SessionExpired styleName={style['loading-result']} />;

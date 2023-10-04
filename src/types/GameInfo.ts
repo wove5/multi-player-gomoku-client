@@ -1,9 +1,12 @@
 import { GAMESTATUS, POSITION_STATUS } from '../constants';
+import { PlayerDetail } from './PlayerDetail';
+import { UserDetail } from './UserDetail';
 
 export interface GameInfo {
   _id: string;
   userId: string;
   gameNumber: number;
+  isMulti: boolean;
   size: number[];
   status: GAMESTATUS;
   positions: {
@@ -13,4 +16,6 @@ export interface GameInfo {
   selectedPositions: number[];
   createdAt: Date;
   updatedAt: Date;
+  players: Array<PlayerDetail>;
+  userDetail: Array<UserDetail>;
 }
