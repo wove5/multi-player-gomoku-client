@@ -19,6 +19,7 @@ export enum GAMESTATUS {
 export enum ACTION {
   RESUME = 'RESUME',
   JOIN = 'JOIN',
+  LEAVE = 'LEAVE',
 }
 
 export const API_HOST = process.env.REACT_APP_API_HOST || '';

@@ -2,10 +2,10 @@ import style from './Game.module.css';
 import { Message, PageNotFound, Position, SessionExpired } from '../components';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { GameContext, UserContext } from '../context';
-import { POSITION_STATUS, GAMESTATUS, API_HOST } from '../constants';
+import { POSITION_STATUS, GAMESTATUS, API_HOST, ACTION } from '../constants';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { del, get, put } from '../utils/http';
-import { GameInfo, ResetGame, UpdateGame } from '../types';
+import { EnterLeaveGame, GameInfo, ResetGame, UpdateGame } from '../types';
 import { IncompleteGameData } from '../interfaces';
 import { GameStatus } from '../types/GameStatus';
 
@@ -250,6 +250,17 @@ export default function Game() {
     }
   };
 
+  const leaveGame = async () => {
+    try {
+      setErrorMessage('');
+      await put<EnterLeaveGame, GameInfo>(`${API_HOST}/api/game/${gameId}`, {
+        action: ACTION.LEAVE,
+      });
+    } catch (err: any) {
+      setErrorMessage(err.message);
+    }
+  };
+
   const gameStateLabel = () => {
     switch (game.status) {
       case GAMESTATUS.ACTIVE:
@@ -314,7 +325,11 @@ export default function Game() {
               className={style.button}
               onClick={async () => {
                 if (game.status === GAMESTATUS.ACTIVE) {
-                  if (game.players.length === 1) await deleteGame();
+                  if (game.players.length === 1) {
+                    await deleteGame();
+                  } else {
+                    await leaveGame();
+                  }
                   navigate('/', { replace: true });
                 } else {
                   navigate('/games', { replace: true });

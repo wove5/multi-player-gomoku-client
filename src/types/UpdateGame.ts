@@ -8,6 +8,6 @@ export interface ResetGame {
   status: POSITION_STATUS.NONE;
 }
 
-export interface JoinGame {
+export interface EnterLeaveGame {
   action: ACTION;
 }

@@ -7,7 +7,7 @@ import { useContext, useEffect, useState } from 'react';
 import boards from '../data/boards.json';
 import { get, post, put } from '../utils/http';
 import { IncompleteGameData } from '../interfaces';
-import { CreateGameInfo, GameInfo, JoinGame } from '../types';
+import { CreateGameInfo, EnterLeaveGame, GameInfo } from '../types';
 import { API_HOST, ACTION } from '../constants';
 
 export default function Home() {
@@ -100,15 +100,19 @@ export default function Home() {
   };
 
   const retrieveGame = async (gameId: string, action: ACTION) => {
+    //TODO: refactor ACTION type of action arg to something better; ACTION.LEAVE is a possible value,and should not be
     try {
       setRetrievingGame(true);
       setAttemptGameRetrieval(true);
       const game =
         action === ACTION.RESUME
           ? await get<GameInfo>(`${API_HOST}/api/game/${gameId}`)
-          : await put<JoinGame, GameInfo>(`${API_HOST}/api/game/${gameId}`, {
-              action: action,
-            });
+          : await put<EnterLeaveGame, GameInfo>(
+              `${API_HOST}/api/game/${gameId}`,
+              {
+                action: action,
+              }
+            );
       setRetrievingGame(false);
       setAttemptGameRetrieval(false);
       return game;
