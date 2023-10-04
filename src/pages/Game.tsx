@@ -314,7 +314,7 @@ export default function Game() {
               className={style.button}
               onClick={async () => {
                 if (game.status === GAMESTATUS.ACTIVE) {
-                  await deleteGame();
+                  if (game.players.length === 1) await deleteGame();
                   navigate('/', { replace: true });
                 } else {
                   navigate('/games', { replace: true });
