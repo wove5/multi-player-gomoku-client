@@ -1,6 +1,6 @@
 import style from './Game.module.css';
 import { Message, PageNotFound, Position, SessionExpired } from '../components';
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { GameContext, UserContext } from '../context';
 import { POSITION_STATUS, GAMESTATUS, API_HOST, ACTION } from '../constants';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -32,6 +32,9 @@ export default function Game() {
       ? undefined
       : state.gameBackup
   );
+
+  // create a websocket client connection
+  const ws = useMemo(() => new WebSocket('ws://localhost:8080'), []);
 
   // infer player from game if loaded via state, otherwise, just set to BLACK for now - it is set again in useEffect
   const [player, setPlayer] = useState<POSITION_STATUS>(
@@ -105,7 +108,13 @@ export default function Game() {
     // a page reload or direct nav will set game to undefined via useState hook, so fetchGameBoard will be triggered
     if (!game) fetchGameBoard(); // another reason to run this conditionally is to prevent an infinite loop occurring
     // if game hadn't been preloaded via react router state, fetchGameBoard will set player correctly
-  }, [game, fetchGameBoard, navigate, location.pathname, gameBackup]);
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        console.log('closing websocket connection');
+        ws.close();
+      }
+    };
+  }, [game, fetchGameBoard, navigate, location.pathname, gameBackup, ws]);
 
   if (!user) {
     return <SessionExpired styleName={style['loading-result']} />;
