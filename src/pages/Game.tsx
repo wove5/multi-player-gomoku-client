@@ -9,6 +9,14 @@ import { EnterLeaveGame, GameInfo, ResetGame, UpdateGame } from '../types';
 import { IncompleteGameData } from '../interfaces';
 import { GameStatus } from '../types/GameStatus';
 
+const getWebSocketURL = () => {
+  if (!API_HOST) return `ws://localhost:8080`;
+  const hostURL = new URL(API_HOST);
+  return `${hostURL.protocol === 'https:' ? `wss` : `ws`}://${
+    hostURL.hostname
+  }`;
+};
+
 export default function Game() {
   const navigate = useNavigate();
   // const { state } = useLocation();
@@ -26,7 +34,7 @@ export default function Game() {
     state === null || state.game === undefined ? undefined : state.game
   );
 
-  // gameBackup will receive and pass on the Users/Players' details from location.state
+  // gameBackup will receive and pass on the Users/Players' details from location.state to Header
   const [gameBackup, setGameBackup] = useState<GameInfo | undefined>(
     state === null || state.gameBackup === undefined
       ? undefined
@@ -34,7 +42,7 @@ export default function Game() {
   );
 
   // create a websocket client connection
-  const ws = useMemo(() => new WebSocket('ws://localhost:8080'), []);
+  const ws = useMemo(() => new WebSocket(getWebSocketURL()), []);
 
   // infer player from game if loaded via state, otherwise, just set to BLACK for now - it is set again in useEffect
   const [player, setPlayer] = useState<POSITION_STATUS>(
@@ -59,6 +67,7 @@ export default function Game() {
   const [updating, setUpdating] = useState(false);
 
   const fetchGameBoard = useCallback(async () => {
+    console.log(`trying an API call`);
     try {
       const incompleteGames = await get<IncompleteGameData[]>(
         `${API_HOST}/api`
@@ -84,6 +93,7 @@ export default function Game() {
           ? POSITION_STATUS.WHITE
           : POSITION_STATUS.BLACK
       );
+      console.log(`game successfully retrieved from API`);
     } catch (err: any) {
       setGame(undefined);
       setLoading(false);
@@ -95,26 +105,79 @@ export default function Game() {
         logout();
       }
     }
-  }, [logout, gameId]);
+  }, [gameId, logout]);
 
   useEffect(() => {
-    // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from state.game
-    // Hence, any page refreshes or direct-nav's will pull game data from server API & DB
-    // navigate(location.pathname, { replace: true }); // replacing this with the version below - need to maintain gameBackup
+    // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
+    // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
+    console.log(`re-navigating to clear state.game`);
     navigate(location.pathname, {
       replace: true,
       state: { gameBackup: gameBackup },
+      // Now any subsequent page refreshes or direct-nav's will pull game data from server API & DB.
     });
-    // a page reload or direct nav will set game to undefined via useState hook, so fetchGameBoard will be triggered
-    if (!game) fetchGameBoard(); // another reason to run this conditionally is to prevent an infinite loop occurring
-    // if game hadn't been preloaded via react router state, fetchGameBoard will set player correctly
+    if (game) {
+      console.log(`game has already been set in component`);
+      console.log(`about to subscribe to websocket`);
+      ws.onmessage = (event) => {
+        console.log(`incoming msg ~~~`);
+        try {
+          const data = JSON.parse(event.data);
+          if (
+            typeof data === 'object' &&
+            data.updatedBy !== user?._id &&
+            'userDetail' in data.game
+          ) {
+            // console.log(`setting game`);
+            // setGame(data.game); // don't do this, it will reload the whole page
+            navigate(location.pathname, {
+              replace: true,
+              state: { gameBackup: data.game }, // state.gameBackup is retained & updated, but state.game is removed
+            });
+          }
+        } catch (e) {
+          console.log(e);
+        }
+      };
+      console.log(`connected to websocket`);
+    } else {
+      // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
+      // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
+      // Another reason to run this conditionally is to prevent an infinite loop occurring.
+      console.log(`game is not set in component`);
+      console.log(`calling fetchGameBoard`);
+      fetchGameBoard().then(() => {
+        console.log(`fetchGameBoard just ran`);
+        console.log(`about to subscribe to websocket`);
+        ws.onmessage = (event) => {
+          console.log(`message coming ---`);
+          try {
+            const data = JSON.parse(event.data);
+            if (
+              typeof data === 'object' &&
+              data.updatedBy !== user?._id &&
+              'userDetail' in data.game
+            ) {
+              // setGame(data.game); // don't do this, it will reload the whole page; find another way to update selected positions
+              navigate(location.pathname, {
+                replace: true,
+                state: { gameBackup: data.game }, // state.gameBackup is retained & updated, but state.game is removed
+              });
+            }
+          } catch (e) {
+            console.log(e);
+          }
+        };
+        console.log(`connected to websocket`);
+      });
+    }
     return () => {
       if (ws.readyState === WebSocket.OPEN) {
         console.log('closing websocket connection');
         ws.close();
       }
     };
-  }, [game, fetchGameBoard, navigate, location.pathname, gameBackup, ws]);
+  }, [ws, user, fetchGameBoard, navigate, location.pathname, gameBackup, game]);
 
   if (!user) {
     return <SessionExpired styleName={style['loading-result']} />;
