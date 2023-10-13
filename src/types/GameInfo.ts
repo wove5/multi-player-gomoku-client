@@ -1,6 +1,5 @@
 import { GAMESTATUS, POSITION_STATUS } from '../constants';
 import { PlayerDetail } from './PlayerDetail';
-import { UserDetail } from './UserDetail';
 
 export interface GameInfo {
   _id: string;
@@ -17,5 +16,4 @@ export interface GameInfo {
   createdAt: Date;
   updatedAt: Date;
   players: Array<PlayerDetail>;
-  userDetail: Array<UserDetail>;
 }

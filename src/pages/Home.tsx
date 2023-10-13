@@ -99,23 +99,43 @@ export default function Home() {
     }
   };
 
-  const retrieveGame = async (gameId: string, action: ACTION) => {
+  const resumeGame = async (gameId: string) => {
     //TODO: refactor ACTION type of action arg to something better; ACTION.LEAVE is a possible value,and should not be
     try {
       setRetrievingGame(true);
       setAttemptGameRetrieval(true);
-      const game =
-        action === ACTION.RESUME
-          ? await get<GameInfo>(`${API_HOST}/api/game/${gameId}`)
-          : await put<EnterLeaveGame, GameInfo>(
-              `${API_HOST}/api/game/${gameId}`,
-              {
-                action: action,
-              }
-            );
+      const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
       setRetrievingGame(false);
       setAttemptGameRetrieval(false);
-      return game;
+      return result;
+    } catch (err: any) {
+      if (
+        err.message === 'Invalid token' ||
+        err.message === 'Token missing' ||
+        err.message === 'Invalid user'
+      ) {
+        logout();
+        setTokenExpiredFlag(true);
+      }
+      setRetrievingGame(false);
+      return undefined;
+    }
+  };
+
+  const joinGame = async (gameId: string) => {
+    //TODO: refactor ACTION type of action arg to something better; ACTION.LEAVE is a possible value,and should not be
+    try {
+      setRetrievingGame(true);
+      setAttemptGameRetrieval(true);
+      const result = await put<EnterLeaveGame, GameInfo>(
+        `${API_HOST}/api/game/${gameId}`,
+        {
+          action: ACTION.JOIN,
+        }
+      );
+      setRetrievingGame(false);
+      setAttemptGameRetrieval(false);
+      return result;
     } catch (err: any) {
       if (
         err.message === 'Invalid token' ||
@@ -265,9 +285,9 @@ export default function Home() {
                   } else {
                     // navigate(`/game/${selectedGame.value}`); // not using
                     // get game in Home page, then pass to Game page
-                    const gameRetrieved: GameInfo | undefined =
-                      await retrieveGame(selectedGame.value, ACTION.RESUME);
-                    if (gameRetrieved) {
+                    const retrievedGame: GameInfo | undefined =
+                      await resumeGame(selectedGame.value);
+                    if (retrievedGame) {
                       // FYI: initial idea was for GameProvider to maintain player/user details
                       // for subsequent display in header with data passed from Game component.
                       // This changing of state in GameProvider was to occur during Game rendered,
@@ -287,10 +307,10 @@ export default function Home() {
                       // is displayed at the top of the Game page, as well as every other page.
                       // TODO: This long commentary to be moved to a wiki page "design ideas" of the gh repo
 
-                      navigate(`/game/${gameRetrieved._id}`, {
+                      navigate(`/game/${retrievedGame._id}`, {
                         state: {
-                          game: gameRetrieved,
-                          gameBackup: gameRetrieved,
+                          game: retrievedGame,
+                          players: retrievedGame.players,
                         },
                       });
                     }
@@ -327,13 +347,14 @@ export default function Home() {
                     // navigate(`/game/${selectedGame.value}`);
                     // alternatively - get game in Home page, then pass to Game page
                     console.log(`submitting: ${selectedMultiGame.value}`);
-                    const gameRetrieved: GameInfo | undefined =
-                      await retrieveGame(selectedMultiGame.value, ACTION.JOIN);
-                    if (gameRetrieved) {
-                      navigate(`/game/${gameRetrieved._id}`, {
+                    const retrievedGame: GameInfo | undefined = await joinGame(
+                      selectedMultiGame.value
+                    );
+                    if (retrievedGame) {
+                      navigate(`/game/${retrievedGame._id}`, {
                         state: {
-                          game: gameRetrieved,
-                          gameBackup: gameRetrieved,
+                          game: retrievedGame,
+                          players: retrievedGame.players,
                         },
                       });
                     }

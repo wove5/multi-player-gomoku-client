@@ -119,3 +119,11 @@
   display: flex;
   justify-content: center;
 }
+
+.toast-container {
+  width: max-content !important;
+}
+
+.toast-wrapper {
+  width: max-content;
+}

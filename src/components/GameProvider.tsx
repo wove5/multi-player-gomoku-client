@@ -20,8 +20,8 @@ export default function GameProvider({ children }: GameProviderProps) {
 
   useEffect(() => {
     localStorage.setItem('currentPath', JSON.stringify(currentPath));
-    console.log(`currentPath = ${currentPath}`);
-    console.log(`previousPath = ${previousPath}`);
+    // console.log(`currentPath = ${currentPath}`);
+    // console.log(`previousPath = ${previousPath}`);
   }, [currentPath, previousPath]);
 
   return (

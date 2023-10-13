@@ -4,11 +4,19 @@ import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { GameContext, UserContext } from '../context';
 import { POSITION_STATUS, GAMESTATUS, API_HOST, ACTION } from '../constants';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { del, get, put } from '../utils/http';
-import { EnterLeaveGame, GameInfo, ResetGame, UpdateGame } from '../types';
-import { IncompleteGameData } from '../interfaces';
-import { GameStatus } from '../types/GameStatus';
 
+import { del, get, put } from '../utils/http';
+import {
+  EnterLeaveGame,
+  GameInfo,
+  PlayerDetail,
+  ResetGame,
+  UpdateGame,
+} from '../types';
+import { IncompleteGameData, RestFromGameReply } from '../interfaces';
+import { GameStatus } from '../types/GameStatus';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 const getWebSocketURL = () => {
   if (!API_HOST) return `ws://localhost:8080`;
   const hostURL = new URL(API_HOST);
@@ -35,14 +43,26 @@ export default function Game() {
   );
 
   // gameBackup will receive and pass on the Users/Players' details from location.state to Header
-  const [gameBackup, setGameBackup] = useState<GameInfo | undefined>(
-    state === null || state.gameBackup === undefined
-      ? undefined
-      : state.gameBackup
+  // const [gameBackup, setGameBackup] = useState<GameInfo | undefined>(
+  //   state === null || state.gameBackup === undefined
+  //     ? undefined
+  //     : state.gameBackup
+  // );
+
+  // const [userDetail, setUserDetail] = useState<UserDetail | undefined>(
+  //   state === null || state.userDetail === undefined
+  //     ? undefined
+  //     : state.userDetail
+  // );
+
+  const [players, setPlayers] = useState<PlayerDetail[] | undefined>(
+    state === null || state.players === undefined ? undefined : state.players
   );
 
   // create a websocket client connection
   const ws = useMemo(() => new WebSocket(getWebSocketURL()), []);
+
+  const notify = (message: string) => toast(message);
 
   // infer player from game if loaded via state, otherwise, just set to BLACK for now - it is set again in useEffect
   const [player, setPlayer] = useState<POSITION_STATUS>(
@@ -79,7 +99,9 @@ export default function Game() {
       }
       const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
       setGame(result);
-      setGameBackup(result);
+      // setGameBackup(result);
+      // setUserDetail(result.userDetail);
+      setPlayers(result.players);
       setLoading(false);
       setLoadingResultDetermined(true);
       const currentBoardPositions = result.positions;
@@ -107,15 +129,40 @@ export default function Game() {
     }
   }, [gameId, logout]);
 
+  const restFromGame = useCallback(async () => {
+    try {
+      console.log(`Sending put request to Rest from game`);
+      const result = await put<EnterLeaveGame, RestFromGameReply>(
+        // await put<EnterLeaveGame, RestFromGameReply>(
+        `${API_HOST}/api/game/${gameId}`,
+        {
+          action: ACTION.REST,
+        }
+      );
+      console.log(result);
+      return result;
+    } catch (error) {
+      console.log('something went wrong with taking Rest');
+    }
+  }, [gameId]);
+
   useEffect(() => {
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
     console.log(`re-navigating to clear state.game`);
+    // const playersBackup =
+    //   state === null || state.players === undefined ? undefined : state.players;
     navigate(location.pathname, {
       replace: true,
-      state: { gameBackup: gameBackup },
-      // Now any subsequent page refreshes or direct-nav's will pull game data from server API & DB.
+      // state: { gameBackup: gameBackup }
+      // need to specify the following, even if it was already present & correct because replace:true overwrites state
+      // state: { userDetail: userDetail },
+      state: { players: players },
+      // state: { players: playersBackup },
+      // however, game is deliberately excluded, so that the designed logic will work meaning that
+      // any subsequent page refreshes or direct-nav's will pull game data from server API & DB.
     });
+
     if (game) {
       console.log(`game has already been set in component`);
       console.log(`about to subscribe to websocket`);
@@ -123,61 +170,178 @@ export default function Game() {
         console.log(`incoming msg ~~~`);
         try {
           const data = JSON.parse(event.data);
+          console.log(`Object.entries(data) = ${Object.entries(data)}`);
           if (
             typeof data === 'object' &&
             data.updatedBy !== user?._id &&
-            'userDetail' in data.game
+            'action' in data
           ) {
-            // console.log(`setting game`);
-            // setGame(data.game); // don't do this, it will reload the whole page
-            navigate(location.pathname, {
-              replace: true,
-              state: { gameBackup: data.game }, // state.gameBackup is retained & updated, but state.game is removed
-            });
+            console.log(`data.action = ${data.action}`);
+            if (data.action === ACTION.JOIN) {
+              console.log(``);
+              // setGame(data.game); // don't do this, it will reload the whole page
+              navigate(location.pathname, {
+                replace: true,
+                // state: { gameBackup: data.game }, // state.players is retained & updated, but state.game is removed
+                state: { players: data.players },
+              });
+              const msg = data.players.find(
+                (p: PlayerDetail) => p.userId !== user?._id
+              ).userName;
+              notify(`${msg} joined game`);
+            } else if (data.action === ACTION.REENTER) {
+              // navigate(location.pathname, {
+              //   replace: true,
+              //   // state: { gameBackup: data.game }, // state.players is retained & updated, but state.game is removed
+              //   state: { players: data.players },
+              // });
+              const msg = data.players.find(
+                (p: PlayerDetail) => p.userId !== user?._id
+              ).userName;
+              notify(`${msg} re-entered game`);
+            } else if (data.action === ACTION.LEAVE) {
+              const msg = data.players.find(
+                (p: PlayerDetail) => p.userId !== user?._id
+              ).userName;
+              const updatedPlayers = data.players.filter(
+                (p: PlayerDetail) => p.userId !== data.updatedBy
+              );
+              navigate(location.pathname, {
+                replace: true,
+                state: { players: updatedPlayers },
+              });
+              notify(`${msg} left game`);
+            } else if (data.action === ACTION.REST) {
+              const msg = data.players.find(
+                (p: PlayerDetail) => p.userId !== user?._id
+              )?.userName;
+              notify(`${msg} taking rest`);
+            } else if (data.action === ACTION.MOVE) {
+              // navigate(location.pathname, {
+              //   replace: true,
+              //   state: { players: data.players },
+              // });
+              const msg = data.players.find(
+                (p: PlayerDetail) => p.userId !== user?._id
+              ).userName;
+              notify(`${msg}, made move`);
+            }
           }
         } catch (e) {
           console.log(e);
         }
       };
-      console.log(`connected to websocket`);
+      console.log(
+        `${
+          players
+            ? players.find((p: PlayerDetail) => p.userId === user?._id)
+                ?.userName
+            : undefined
+        } connected to websocket`
+      );
     } else {
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
       console.log(`game is not set in component`);
       console.log(`calling fetchGameBoard`);
-      fetchGameBoard().then(() => {
-        console.log(`fetchGameBoard just ran`);
-        console.log(`about to subscribe to websocket`);
-        ws.onmessage = (event) => {
-          console.log(`message coming ---`);
-          try {
-            const data = JSON.parse(event.data);
-            if (
-              typeof data === 'object' &&
-              data.updatedBy !== user?._id &&
-              'userDetail' in data.game
-            ) {
-              // setGame(data.game); // don't do this, it will reload the whole page; find another way to update selected positions
-              navigate(location.pathname, {
-                replace: true,
-                state: { gameBackup: data.game }, // state.gameBackup is retained & updated, but state.game is removed
-              });
-            }
-          } catch (e) {
-            console.log(e);
-          }
-        };
-        console.log(`connected to websocket`);
-      });
+      fetchGameBoard();
+      // fetchGameBoard().then(() => {
+      //   console.log(`fetchGameBoard just ran`);
+      //   console.log(`game = ${game}`);
+      //   console.log(`about to subscribe to websocket`);
+      //   ws.onmessage = (event) => {
+      //     console.log(`message coming ---`);
+      //     try {
+      //       const data = JSON.parse(event.data);
+      //       if (
+      //         typeof data === 'object' &&
+      //         data.updatedBy !== user?._id &&
+      //         'action' in data
+      //       ) {
+      //         if (data.action === ACTION.JOIN) {
+      //           // setGame(data.game); // don't do this, it will reload the whole page; find another way to update selected positions
+      //           navigate(location.pathname, {
+      //             replace: true,
+      //             // state: { gameBackup: data.game }, // state.gameBackup is retained & updated, but state.game is removed
+      //             state: { players: data.players },
+      //           });
+      //           // updatePlayers();
+      //           const msg = data.players.find(
+      //             (p: PlayerDetail) => p.userId !== user?._id
+      //           ).userName;
+      //           notify(`${msg}, joined game`);
+      //         } else if (data.action === ACTION.REENTER) {
+      //           navigate(location.pathname, {
+      //             replace: true,
+      //             // state: { gameBackup: data.game }, // state.players is retained & updated, but state.game is removed
+      //             state: { players: data.players },
+      //           });
+      //           const msg = data.players.find(
+      //             (p: PlayerDetail) => p.userId !== user?._id
+      //           ).userName;
+      //           // updatePlayers();
+      //           notify(`${msg} re-entered game`);
+      //         } else if (data.action === ACTION.LEAVE) {
+      //           const msg = data.players.find(
+      //             (p: PlayerDetail) => p.userId !== user?._id
+      //           ).userName;
+      //           const updatedPlayers = data.players.filter(
+      //             (p: PlayerDetail) => p.userId !== data.updatedBy
+      //           );
+      //           navigate(location.pathname, {
+      //             replace: true,
+      //             state: { players: updatedPlayers },
+      //           });
+      //           notify(`${msg}, left game`);
+      //         } else if (data.action === ACTION.MOVE) {
+      //           const msg = data.players.find(
+      //             (p: PlayerDetail) => p.userId !== user?._id
+      //           ).userName;
+      //           notify(`Opponent, ${msg}, made move`);
+      //         }
+      //       }
+      //     } catch (e) {
+      //       console.log(e);
+      //     }
+      //   };
+      //   console.log(
+      //     `${
+      //       players
+      //         ? players.find((p: PlayerDetail) => p.userId === user?._id)
+      //             ?.userName
+      //         : undefined
+      //     } connected to websocket`
+      //   );
+      // });
     }
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        console.log('closing websocket connection');
+      if (ws.readyState === WebSocket.OPEN && game) {
+        // added game to condition to prevent ws connect breaking on page refresh
+        console.log(
+          `${
+            players
+              ? players.find((p: PlayerDetail) => p.userId === user?._id)
+                  ?.userName
+              : undefined
+          } closing websocket connection`
+        );
+        // although this will always run on page unmounting, the Leave game event
+        // will be handled and discarded appropriately by the server
+        restFromGame();
         ws.close();
       }
     };
-  }, [ws, user, fetchGameBoard, navigate, location.pathname, gameBackup, game]);
+  }, [
+    ws,
+    user,
+    fetchGameBoard,
+    navigate,
+    location.pathname,
+    game,
+    players,
+    restFromGame,
+  ]);
 
   if (!user) {
     return <SessionExpired styleName={style['loading-result']} />;
@@ -325,9 +489,12 @@ export default function Game() {
   const leaveGame = async () => {
     try {
       setErrorMessage('');
+      // const result = await put<EnterLeaveGame, GameInfo>(
       await put<EnterLeaveGame, GameInfo>(`${API_HOST}/api/game/${gameId}`, {
         action: ACTION.LEAVE,
       });
+
+      setPlayers(players?.filter((p) => p.userId !== user._id));
     } catch (err: any) {
       setErrorMessage(err.message);
     }
@@ -421,6 +588,12 @@ export default function Game() {
           )}
         </div>
       </div>
+      <ToastContainer
+        position="top-center"
+        // autoClose={false}
+        className={style['toast-container']}
+        toastClassName={style['toast-wrapper']}
+      />
     </>
   );
 }

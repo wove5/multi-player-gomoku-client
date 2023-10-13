@@ -4,7 +4,7 @@ import { UserContext } from '../context';
 
 import style from './Header.module.css';
 import { PLAYER } from '../constants';
-import { PlayerDetail, UserDetail } from '../types';
+import { PlayerDetail } from '../types';
 
 export default function Header() {
   const navigate = useNavigate();
@@ -83,7 +83,7 @@ export default function Header() {
               {`Logged in as:`}{' '}
               <span
                 className={getClassName(
-                  state?.gameBackup?.players.find(
+                  state?.players?.find(
                     (p: PlayerDetail) => p.userId === user?._id
                   )?.color
                 )}
@@ -93,21 +93,22 @@ export default function Header() {
               </span>
             </div>
           )}
-          {username && state?.gameBackup?.isMulti && (
+          {/* {username && state?.gameBackup?.isMulti && ( */}
+          {state?.players?.length === 2 && (
             <div className={style.username}>
               {`Your opponent:`}{' '}
               <span
                 className={getClassName(
-                  state.gameBackup?.players.find(
+                  state.players.find(
                     (p: PlayerDetail) => p.userId !== user?._id
                   )?.color
                 )}
               >
                 {' '}
                 {
-                  state.gameBackup?.userDetail.find(
-                    (u: UserDetail) => u.userId !== user?._id
-                  )?.username
+                  state.players.find(
+                    (p: PlayerDetail) => p.userId !== user?._id
+                  )?.userName
                 }{' '}
               </span>
             </div>

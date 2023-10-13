@@ -17,9 +17,17 @@ export enum GAMESTATUS {
 }
 
 export enum ACTION {
-  RESUME = 'RESUME',
   JOIN = 'JOIN',
+  REENTER = 'REENTER',
   LEAVE = 'LEAVE',
+  MOVE = 'MOVE',
+  REST = 'REST',
+  RESET = 'RESET',
+}
+
+export enum PLAYER_STATE {
+  RESTING = 'RESTING',
+  PLAYING = 'PLAYING',
 }
 
 export const API_HOST = process.env.REACT_APP_API_HOST || '';
