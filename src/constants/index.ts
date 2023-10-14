@@ -30,4 +30,10 @@ export enum PLAYER_STATE {
   PLAYING = 'PLAYING',
 }
 
+export enum GAME_MODE {
+  SINGLE = 'SINGLE',
+  MULTI = 'MULTI',
+  NONE = 'NONE',
+}
+
 export const API_HOST = process.env.REACT_APP_API_HOST || '';

@@ -8,7 +8,9 @@ import boards from '../data/boards.json';
 import { get, post, put } from '../utils/http';
 import { IncompleteGameData } from '../interfaces';
 import { CreateGameInfo, EnterLeaveGame, GameInfo } from '../types';
-import { API_HOST, ACTION } from '../constants';
+import { API_HOST, ACTION, GAME_MODE } from '../constants';
+
+const gameModes = [GAME_MODE.SINGLE, GAME_MODE.MULTI];
 
 export default function Home() {
   const navigate = useNavigate();
@@ -58,6 +60,23 @@ export default function Home() {
 
   const [selectedBoard, setSelectedBoard] = useState<SingleValue<BoardOption>>({
     value: [],
+    label: '',
+  });
+
+  interface GameModeOption {
+    value: GAME_MODE;
+    label: string;
+  }
+
+  const gameModeOptions: GameModeOption[] = gameModes.map((gm) => ({
+    value: gm,
+    label: `${gm === GAME_MODE.SINGLE ? 'Single Player' : 'Multi Player'}`,
+  }));
+
+  const [selectedGameMode, setSelectedGameMode] = useState<
+    SingleValue<GameModeOption>
+  >({
+    value: GAME_MODE.NONE,
     label: '',
   });
 
@@ -250,19 +269,36 @@ export default function Home() {
         >
           Start new game
         </Button>
-        <Select
-          options={boardOptions}
-          placeholder="Board size"
-          onChange={(
-            newValue: SingleValue<{ value: number[]; label: string }>,
-            actionMeta: ActionMeta<{ value: number[]; label: string }>
-          ) => {
-            setErrorMessage('');
-            setAttemptGameCreation(false);
-            setAttemptGameRetrieval(false);
-            setSelectedBoard(newValue);
-          }}
-        />
+        <div className={style['interim-container1']}>
+          <Select
+            className={style['board-size-game-mode']}
+            options={boardOptions}
+            placeholder="Board size"
+            onChange={(
+              newValue: SingleValue<{ value: number[]; label: string }>,
+              actionMeta: ActionMeta<{ value: number[]; label: string }>
+            ) => {
+              setErrorMessage('');
+              setAttemptGameCreation(false);
+              setAttemptGameRetrieval(false);
+              setSelectedBoard(newValue);
+            }}
+          />
+          <Select
+            className={style['board-size-game-mode']}
+            options={gameModeOptions}
+            placeholder="Game mode"
+            onChange={(
+              newValue: SingleValue<{ value: GAME_MODE; label: string }>,
+              actionMeta: ActionMeta<{ value: GAME_MODE; label: string }>
+            ) => {
+              setErrorMessage('');
+              setAttemptGameCreation(false);
+              setAttemptGameRetrieval(false);
+              setSelectedGameMode(newValue);
+            }}
+          />
+        </div>
         {attemptGameCreation && user && (
           <span className={style['loading-game-result']}>
             Failed to create game - server or network problem. Try again later
@@ -274,7 +310,7 @@ export default function Home() {
           Finding active games
         </span>
       ) : (
-        <div className={style['interim-container']}>
+        <div className={style['interim-container2']}>
           {incompleteGameOptions.length > 0 && (
             <div className={style['inner-container']}>
               <Button
