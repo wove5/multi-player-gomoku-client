@@ -173,6 +173,7 @@ export default function Home() {
     const populateDropDownBoxes = async () => {
       if (!user) {
         setIncompleteGameOptions([]);
+        setMultiPlayerGameOptions([]);
       } else {
         try {
           setLoadingActiveGames(true);
