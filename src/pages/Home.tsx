@@ -274,7 +274,7 @@ export default function Home() {
               );
               if (createdGame) {
                 navigate(`/game/${createdGame._id}`, {
-                  state: { game: createdGame },
+                  state: { game: createdGame, players: createdGame.players },
                 });
               }
             }
