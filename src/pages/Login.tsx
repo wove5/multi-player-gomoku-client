@@ -11,6 +11,7 @@ import { API_HOST } from '../constants';
 export default function Login() {
   const { state } = useLocation();
   const boardSize = state ? state.boardSize : null;
+  const isMulti = state ? state.isMulti : null;
   const { login, user } = useContext(UserContext);
   const usernameInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
@@ -25,9 +26,10 @@ export default function Login() {
     }
   }, []);
 
-  const newGame = async (b: number[]) => {
-    const todaysDate = new Date().toLocaleString().split(',')[0];
-    const inputBody = { size: b, times: { start: todaysDate, end: '' } };
+  const newGame = async (b: number[], isMulti: boolean) => {
+    // const todaysDate = new Date().toLocaleString().split(',')[0];
+    // const inputBody = { size: b, times: { start: todaysDate, end: '' } };
+    const inputBody = { size: b, isMulti: isMulti };
     try {
       setLoadingGame(true);
       const game = await post<CreateGameInfo, GameInfo>(
@@ -56,11 +58,14 @@ export default function Login() {
       setErrorMessage('');
       const result = await login(username, password);
       if (result === true) {
-        if (!boardSize) {
+        if (!boardSize || !isMulti) {
           navigate('/', { replace: true });
         } else {
           try {
-            const createdGame: GameInfo | undefined = await newGame(boardSize);
+            const createdGame: GameInfo | undefined = await newGame(
+              boardSize,
+              isMulti
+            );
             if (!createdGame) {
               navigate(`/`, { replace: true });
             } else {

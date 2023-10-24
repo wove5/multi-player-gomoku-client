@@ -89,8 +89,8 @@ export default function Home() {
     control: (provided) => ({ ...provided, wordSpacing: '0.2rem' }),
   };
 
-  const newGame = async (b: number[]) => {
-    const inputBody = { size: b };
+  const newGame = async (b: number[], isMulti: boolean) => {
+    const inputBody = { size: b, isMulti: isMulti };
     try {
       setCreatingGame(true);
       setAttemptGameCreation(true);
@@ -250,15 +250,27 @@ export default function Home() {
         <Button
           type="submit"
           onClick={async (e) => {
-            if (!selectedBoard || selectedBoard.label === '') {
+            if (
+              !selectedBoard || // check for null to avoid value could be null
+              !selectedGameMode || // warning when assigning from or referencing properties
+              selectedBoard.value.length === 0 ||
+              selectedBoard.label === '' ||
+              selectedGameMode.value === GAME_MODE.NONE ||
+              selectedGameMode.label === ''
+            ) {
               e.preventDefault();
             } else if (!user) {
               navigate(`/login`, {
-                state: { boardSize: selectedBoard.value },
+                state: {
+                  boardSize: selectedBoard.value,
+                  isMulti:
+                    selectedGameMode.value === GAME_MODE.MULTI ? true : false,
+                },
               });
             } else {
               const createdGame: GameInfo | undefined = await newGame(
-                selectedBoard.value
+                selectedBoard.value,
+                selectedGameMode.value === GAME_MODE.MULTI ? true : false
               );
               if (createdGame) {
                 navigate(`/game/${createdGame._id}`, {

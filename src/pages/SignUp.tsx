@@ -10,7 +10,7 @@ import { API_HOST } from '../constants';
 
 export default function SignUp() {
   const { state } = useLocation();
-  const { boardSize } = state;
+  const { boardSize, isMulti } = state;
   const { register } = useContext(UserContext);
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
@@ -18,9 +18,10 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const newGame = async (b: number[]) => {
-    const todaysDate = new Date().toLocaleString().split(',')[0];
-    const inputBody = { size: b, times: { start: todaysDate, end: '' } };
+  const newGame = async (b: number[], isMulti: boolean) => {
+    // const todaysDate = new Date().toLocaleString().split(',')[0];
+    // const inputBody = { size: b, times: { start: todaysDate, end: '' } };
+    const inputBody = { size: b, isMulti: isMulti };
     try {
       const game = await post<CreateGameInfo, GameInfo>(
         `${API_HOST}/api/`,
@@ -40,10 +41,13 @@ export default function SignUp() {
     }
     const result = await register(username, password);
     if (result === true) {
-      if (!boardSize) {
+      if (!boardSize || !isMulti) {
         navigate('/');
       } else {
-        const createdGame: GameInfo | undefined = await newGame(boardSize);
+        const createdGame: GameInfo | undefined = await newGame(
+          boardSize,
+          isMulti
+        );
         if (!createdGame) {
           navigate('/');
         } else {
