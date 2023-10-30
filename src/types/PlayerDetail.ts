@@ -1,3 +1,7 @@
-import { PLAYER } from '../constants';
+import { PLAYER, POSITION_STATUS } from '../constants';
 
-export type PlayerDetail = { userId: string; color: PLAYER; userName: string };
+export type PlayerDetail = {
+  userId: string;
+  color: POSITION_STATUS;
+  userName: string;
+};

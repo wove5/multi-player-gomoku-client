@@ -2,7 +2,13 @@ import style from './Game.module.css';
 import { Message, PageNotFound, Position, SessionExpired } from '../components';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { GameContext, UserContext } from '../context';
-import { POSITION_STATUS, GAMESTATUS, API_HOST, ACTION } from '../constants';
+import {
+  POSITION_STATUS,
+  GAMESTATUS,
+  API_HOST,
+  ACTION,
+  PLAYER,
+} from '../constants';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { del, get, put } from '../utils/http';
@@ -65,19 +71,19 @@ export default function Game() {
   const notify = (message: string) => toast(message);
 
   // infer player from game if loaded via state, otherwise, just set to BLACK for now - it is set again in useEffect
-  const [player, setPlayer] = useState<POSITION_STATUS>(
+  const [player, setPlayer] = useState<PLAYER>(
     state === null || state.game === undefined
-      ? POSITION_STATUS.BLACK
+      ? PLAYER.BLACK
       : () => {
           const currentBoardPositions = state.game.positions;
           const selectedPositionNumbers = state.game.selectedPositions;
           const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
           return lastSelectedPositionNumber.length === 0
-            ? POSITION_STATUS.BLACK
+            ? PLAYER.BLACK
             : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
               POSITION_STATUS.BLACK
-            ? POSITION_STATUS.WHITE
-            : POSITION_STATUS.BLACK;
+            ? PLAYER.WHITE
+            : PLAYER.BLACK;
         }
   );
 
@@ -109,11 +115,11 @@ export default function Game() {
       const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
       setPlayer(
         lastSelectedPositionNumber.length === 0
-          ? POSITION_STATUS.BLACK
+          ? PLAYER.BLACK
           : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
             POSITION_STATUS.BLACK
-          ? POSITION_STATUS.WHITE
-          : POSITION_STATUS.BLACK
+          ? PLAYER.WHITE
+          : PLAYER.BLACK
       );
       console.log(`game successfully retrieved from API`);
     } catch (err: any) {
@@ -163,7 +169,7 @@ export default function Game() {
       // any subsequent page refreshes or direct-nav's will pull game data from server API & DB.
     });
 
-    if (game) {
+    if (game && user) {
       console.log(`game has already been set in component`);
       console.log(`about to subscribe to websocket`);
       ws.onmessage = (event) => {
@@ -173,7 +179,7 @@ export default function Game() {
           console.log(`Object.entries(data) = ${Object.entries(data)}`);
           if (
             typeof data === 'object' &&
-            data.updatedBy !== user?._id &&
+            data.updatedBy !== user._id &&
             'action' in data
           ) {
             console.log(`data.action = ${data.action}`);
@@ -186,7 +192,7 @@ export default function Game() {
                 state: { players: data.players },
               });
               const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user?._id
+                (p: PlayerDetail) => p.userId !== user._id
               ).userName;
               notify(`${msg} joined game`);
             } else if (data.action === ACTION.REENTER) {
@@ -196,12 +202,12 @@ export default function Game() {
               //   state: { players: data.players },
               // });
               const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user?._id
+                (p: PlayerDetail) => p.userId !== user._id
               ).userName;
               notify(`${msg} re-entered game`);
             } else if (data.action === ACTION.LEAVE) {
               const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user?._id
+                (p: PlayerDetail) => p.userId !== user._id
               ).userName;
               const updatedPlayers = data.players.filter(
                 (p: PlayerDetail) => p.userId !== data.updatedBy
@@ -213,7 +219,7 @@ export default function Game() {
               notify(`${msg} left game`);
             } else if (data.action === ACTION.REST) {
               const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user?._id
+                (p: PlayerDetail) => p.userId !== user._id
               )?.userName;
               notify(`${msg} taking rest`);
             } else if (data.action === ACTION.MOVE) {
@@ -222,7 +228,7 @@ export default function Game() {
               //   state: { players: data.players },
               // });
               const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user?._id
+                (p: PlayerDetail) => p.userId !== user._id
               ).userName;
               notify(`${msg}, made move`);
             }
@@ -234,8 +240,7 @@ export default function Game() {
       console.log(
         `${
           players
-            ? players.find((p: PlayerDetail) => p.userId === user?._id)
-                ?.userName
+            ? players.find((p: PlayerDetail) => p.userId === user._id)?.userName
             : undefined
         } connected to websocket`
       );
@@ -243,77 +248,10 @@ export default function Game() {
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
+      // After passing through this branch, useEffect runs a second time, where it will setup websocket in other branch
       console.log(`game is not set in component`);
       console.log(`calling fetchGameBoard`);
       fetchGameBoard();
-      // fetchGameBoard().then(() => {
-      //   console.log(`fetchGameBoard just ran`);
-      //   console.log(`game = ${game}`);
-      //   console.log(`about to subscribe to websocket`);
-      //   ws.onmessage = (event) => {
-      //     console.log(`message coming ---`);
-      //     try {
-      //       const data = JSON.parse(event.data);
-      //       if (
-      //         typeof data === 'object' &&
-      //         data.updatedBy !== user?._id &&
-      //         'action' in data
-      //       ) {
-      //         if (data.action === ACTION.JOIN) {
-      //           // setGame(data.game); // don't do this, it will reload the whole page; find another way to update selected positions
-      //           navigate(location.pathname, {
-      //             replace: true,
-      //             // state: { gameBackup: data.game }, // state.gameBackup is retained & updated, but state.game is removed
-      //             state: { players: data.players },
-      //           });
-      //           // updatePlayers();
-      //           const msg = data.players.find(
-      //             (p: PlayerDetail) => p.userId !== user?._id
-      //           ).userName;
-      //           notify(`${msg}, joined game`);
-      //         } else if (data.action === ACTION.REENTER) {
-      //           navigate(location.pathname, {
-      //             replace: true,
-      //             // state: { gameBackup: data.game }, // state.players is retained & updated, but state.game is removed
-      //             state: { players: data.players },
-      //           });
-      //           const msg = data.players.find(
-      //             (p: PlayerDetail) => p.userId !== user?._id
-      //           ).userName;
-      //           // updatePlayers();
-      //           notify(`${msg} re-entered game`);
-      //         } else if (data.action === ACTION.LEAVE) {
-      //           const msg = data.players.find(
-      //             (p: PlayerDetail) => p.userId !== user?._id
-      //           ).userName;
-      //           const updatedPlayers = data.players.filter(
-      //             (p: PlayerDetail) => p.userId !== data.updatedBy
-      //           );
-      //           navigate(location.pathname, {
-      //             replace: true,
-      //             state: { players: updatedPlayers },
-      //           });
-      //           notify(`${msg}, left game`);
-      //         } else if (data.action === ACTION.MOVE) {
-      //           const msg = data.players.find(
-      //             (p: PlayerDetail) => p.userId !== user?._id
-      //           ).userName;
-      //           notify(`Opponent, ${msg}, made move`);
-      //         }
-      //       }
-      //     } catch (e) {
-      //       console.log(e);
-      //     }
-      //   };
-      //   console.log(
-      //     `${
-      //       players
-      //         ? players.find((p: PlayerDetail) => p.userId === user?._id)
-      //             ?.userName
-      //         : undefined
-      //     } connected to websocket`
-      //   );
-      // });
     }
     return () => {
       if (ws.readyState === WebSocket.OPEN && game) {
@@ -372,7 +310,7 @@ export default function Game() {
 
   const updateGame = async (id: string, posId: number) => {
     if (
-      // a selection had already been made but the db update failed
+      // if a selection had already been made but the db update had failed
       // (this is operating on the client side end only)
       game.positions[game.selectedPositions.slice(-1)[0]]?.status ===
       POSITION_STATUS.YELLOW
@@ -386,7 +324,15 @@ export default function Game() {
       const originalSelectedPositions = game.selectedPositions.slice(0, -1);
 
       const newPositions = originalPositions.map((p) => {
-        return p._id === id ? { ...p, status: player } : p;
+        return p._id === id
+          ? {
+              ...p,
+              status:
+                player === PLAYER.BLACK
+                  ? POSITION_STATUS.BLACK
+                  : POSITION_STATUS.WHITE,
+            }
+          : p;
       });
       const newSelectedPositions = [...originalSelectedPositions, posId];
 
@@ -397,13 +343,41 @@ export default function Game() {
       });
     }
 
+    const findMe = players?.find((p: PlayerDetail) => p.userId === user?._id);
+
+    if (
+      game.isMulti &&
+      findMe?.color.toString() !== player.toString()
+      // findMe?.color.toString() ===
+      //   game.positions[game.selectedPositions.slice(-1)[0]].status.toString()
+    ) {
+      // abort here if not player's turn
+      return;
+    }
+    // const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
+    // return lastSelectedPositionNumber.length === 0
+    //   ? PLAYER.BLACK
+    //   : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
+    //     POSITION_STATUS.BLACK
+    //   ? PLAYER.WHITE
+    //   : PLAYER.BLACK;
+
     setErrorMessage('');
     // carry out the selection operation and try making all the necessary updates in the database
     setUpdating(true);
     const newPositions = game.positions.map((p) => {
-      return p._id === id ? { ...p, status: player } : p;
+      return p._id === id
+        ? {
+            ...p,
+            status:
+              player === PLAYER.BLACK
+                ? POSITION_STATUS.BLACK
+                : POSITION_STATUS.WHITE,
+          }
+        : p;
     });
     const newSelectedPositions = [...game.selectedPositions, posId];
+    // set positions & selectedPositions ahead of the api call to make it appear more responsive
     setGame({
       ...game,
       positions: newPositions,
@@ -417,20 +391,29 @@ export default function Game() {
           id: id,
         }
       );
-      if (result.status !== GAMESTATUS.ACTIVE) {
-        setGame({
-          ...game,
-          status: result.status, // status is the one that needs updating, but
-          positions: newPositions, // need to set positions & selectedPositions again
-          selectedPositions: newSelectedPositions, // otherwise ...game will overwrite them with their original values
-        });
-      } else {
-        setPlayer(
-          result.player === POSITION_STATUS.BLACK
-            ? POSITION_STATUS.WHITE
-            : POSITION_STATUS.BLACK
-        );
-      }
+      setGame({
+        ...game,
+        status: result.status, // status is the one that needs updating, but
+        positions: newPositions, // need to set positions & selectedPositions again
+        selectedPositions: newSelectedPositions, // otherwise ...game will overwrite them with their original values
+      });
+      // set the player to whatever the server sends back
+      setPlayer(result.player);
+      // if (result.status !== GAMESTATUS.ACTIVE) {
+      //   setGame({
+      //     ...game,
+      //     status: result.status, // status is the one that needs updating, but
+      //     positions: newPositions, // need to set positions & selectedPositions again
+      //     selectedPositions: newSelectedPositions, // otherwise ...game will overwrite them with their original values
+      //   });
+      // } else {
+      //   setPlayer(
+      //     //result.player === POSITION_STATUS.BLACK ? PLAYER.WHITE : PLAYER.BLACK
+      //     // the server will set the player correctly and send in it's res object
+      //     // result.player === POSITION_STATUS.BLACK ? PLAYER.BLACK : PLAYER.WHITE
+      //     result.player
+      //   );
+      // }
       setUpdating(false);
     } catch (err: any) {
       // for any failed database updates
@@ -471,7 +454,7 @@ export default function Game() {
         }
       );
       setGame(result);
-      setPlayer(POSITION_STATUS.BLACK);
+      setPlayer(PLAYER.BLACK);
     } catch (err: any) {
       setErrorMessage(err.message);
     }

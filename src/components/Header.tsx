@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { UserContext } from '../context';
 
 import style from './Header.module.css';
-import { PLAYER } from '../constants';
+import { PLAYER, POSITION_STATUS } from '../constants';
 import { PlayerDetail } from '../types';
 
 export default function Header() {
@@ -59,11 +59,11 @@ export default function Header() {
     }
   };
 
-  const getClassName = (playerColor: PLAYER | undefined) => {
+  const getClassName = (playerColor: POSITION_STATUS | undefined) => {
     switch (true) {
-      case playerColor === PLAYER.BLACK:
+      case playerColor === POSITION_STATUS.BLACK:
         return style.black;
-      case playerColor === PLAYER.WHITE:
+      case playerColor === POSITION_STATUS.WHITE:
         return style.white;
       default:
         return style.username;
