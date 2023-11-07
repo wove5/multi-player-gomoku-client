@@ -396,14 +396,14 @@ export default function Home() {
                     // navigate(`/game/${selectedGame.value}`);
                     // alternatively - get game in Home page, then pass to Game page
                     console.log(`submitting: ${selectedMultiGame.value}`);
-                    const retrievedGame: GameInfo | undefined = await joinGame(
+                    const game: GameInfo | undefined = await joinGame(
                       selectedMultiGame.value
                     );
-                    if (retrievedGame) {
-                      navigate(`/game/${retrievedGame._id}`, {
+                    if (game) {
+                      navigate(`/game/${game._id}`, {
                         state: {
-                          game: retrievedGame,
-                          players: retrievedGame.players,
+                          game: game,
+                          players: game.players,
                         },
                       });
                     }
