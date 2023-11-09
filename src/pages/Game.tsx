@@ -460,19 +460,9 @@ export default function Game() {
     }
   };
 
-  const deleteGame = async () => {
-    try {
-      setErrorMessage('');
-      await del(`${API_HOST}/api/game/${gameId}`);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-    }
-  };
-
   const leaveGame = async () => {
     try {
       setErrorMessage('');
-      // const result = await put<EnterLeaveGame, GameInfo>(
       await put<EnterLeaveGame, GameInfo>(`${API_HOST}/api/game/${gameId}`, {
         action: ACTION.LEAVE,
       });
@@ -547,11 +537,7 @@ export default function Game() {
               className={style.button}
               onClick={async () => {
                 if (game.status === GAMESTATUS.ACTIVE) {
-                  if (game.players.length === 1) {
-                    await deleteGame();
-                  } else {
-                    await leaveGame();
-                  }
+                  await leaveGame();
                   navigate('/', { replace: true });
                 } else {
                   navigate('/games', { replace: true });
