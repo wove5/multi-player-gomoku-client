@@ -184,7 +184,6 @@ export default function Game() {
           ) {
             console.log(`data.action = ${data.action}`);
             if (data.action === ACTION.JOIN) {
-              console.log(``);
               // setGame(data.game); // don't do this, it will reload the whole page
               navigate(location.pathname, {
                 replace: true,
@@ -523,7 +522,7 @@ export default function Game() {
             {game.status === GAMESTATUS.ACTIVE && (
               <>
                 {' '}
-                {game.players.length === 1 && (
+                {state.players.length === 1 && (
                   <button className={style.button} onClick={() => resetGame()}>
                     Restart
                   </button>
