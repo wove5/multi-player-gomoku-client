@@ -1,6 +1,7 @@
 import style from './Game.module.css';
 import { Message, PageNotFound, Position, SessionExpired } from '../components';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+// import { useWhatChanged } from '@simbathesailor/use-what-changed';
 import { GameContext, UserContext } from '../context';
 import {
   POSITION_STATUS,
@@ -11,7 +12,7 @@ import {
 } from '../constants';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { del, get, put } from '../utils/http';
+import { get, put } from '../utils/http';
 import {
   EnterLeaveGame,
   GameInfo,
@@ -33,7 +34,6 @@ const getWebSocketURL = () => {
 
 export default function Game() {
   const navigate = useNavigate();
-  // const { state } = useLocation();
   // need to make use of location object in useEffect.
   const location = useLocation();
   // state will only be allocated from Home page on first programmatic nav to this page
@@ -48,21 +48,8 @@ export default function Game() {
     state === null || state.game === undefined ? undefined : state.game
   );
 
-  // gameBackup will receive and pass on the Users/Players' details from location.state to Header
-  // const [gameBackup, setGameBackup] = useState<GameInfo | undefined>(
-  //   state === null || state.gameBackup === undefined
-  //     ? undefined
-  //     : state.gameBackup
-  // );
-
-  // const [userDetail, setUserDetail] = useState<UserDetail | undefined>(
-  //   state === null || state.userDetail === undefined
-  //     ? undefined
-  //     : state.userDetail
-  // );
-
-  const [players, setPlayers] = useState<PlayerDetail[] | undefined>(
-    state === null || state.players === undefined ? undefined : state.players
+  const [gamePreLoaded, setGamePreLoaded] = useState(
+    state !== null && state.game !== undefined
   );
 
   // create a websocket client connection
@@ -93,179 +80,170 @@ export default function Game() {
   const [updating, setUpdating] = useState(false);
 
   const fetchGameBoard = useCallback(async () => {
-    console.log(`trying an API call`);
-    try {
-      const incompleteGames = await get<IncompleteGameData[]>(
-        `${API_HOST}/api`
-      );
-      if (incompleteGames && !incompleteGames.find((g) => g._id === gameId)) {
+    if (!gamePreLoaded) {
+      console.log(`trying an API call`);
+      try {
+        const incompleteGames = await get<IncompleteGameData[]>(
+          `${API_HOST}/api`
+        );
+        if (incompleteGames && !incompleteGames.find((g) => g._id === gameId)) {
+          setLoading(false);
+          setLoadingResultDetermined(true);
+          return;
+        }
+        const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
+        setGame(result);
         setLoading(false);
         setLoadingResultDetermined(true);
-        return;
-      }
-      const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
-      setGame(result);
-      // setGameBackup(result);
-      // setUserDetail(result.userDetail);
-      setPlayers(result.players);
-      setLoading(false);
-      setLoadingResultDetermined(true);
-      const currentBoardPositions = result.positions;
-      const selectedPositionNumbers = result.selectedPositions;
-      const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
-      setPlayer(
-        lastSelectedPositionNumber.length === 0
-          ? PLAYER.BLACK
-          : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
-            POSITION_STATUS.BLACK
-          ? PLAYER.WHITE
-          : PLAYER.BLACK
-      );
-      console.log(`game successfully retrieved from API`);
-    } catch (err: any) {
-      setGame(undefined);
-      setLoading(false);
-      if (
-        err.message === 'Invalid token' ||
-        err.message === 'Token missing' ||
-        err.message === 'Invalid user'
-      ) {
-        logout();
+        const currentBoardPositions = result.positions;
+        const selectedPositionNumbers = result.selectedPositions;
+        const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
+        setPlayer(
+          lastSelectedPositionNumber.length === 0
+            ? PLAYER.BLACK
+            : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
+              POSITION_STATUS.BLACK
+            ? PLAYER.WHITE
+            : PLAYER.BLACK
+        );
+        console.log(`game successfully retrieved from API`);
+        setGamePreLoaded(false);
+      } catch (err: any) {
+        setGame(undefined);
+        setLoading(false);
+        if (
+          err.message === 'Invalid token' ||
+          err.message === 'Token missing' ||
+          err.message === 'Invalid user'
+        ) {
+          logout();
+        }
       }
     }
-  }, [gameId, logout]);
+  }, [gamePreLoaded, gameId, logout]);
 
   const restFromGame = useCallback(async () => {
     try {
       console.log(`Sending put request to Rest from game`);
-      const result = await put<EnterLeaveGame, RestFromGameReply>(
-        // await put<EnterLeaveGame, RestFromGameReply>(
+      await put<EnterLeaveGame, RestFromGameReply>(
         `${API_HOST}/api/game/${gameId}`,
         {
           action: ACTION.REST,
         }
       );
-      console.log(result);
-      return result;
     } catch (error) {
       console.log('something went wrong with taking Rest');
     }
   }, [gameId]);
 
+  // a handy utility for use in dev mode.
+  // useWhatChanged(
+  //   [ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, previousPath],
+  //   'ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, previousPath'
+  // );
+
   useEffect(() => {
+    console.log(`running useEffect fnc`);
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
-    console.log(`re-navigating to clear state.game`);
-    // const playersBackup =
-    //   state === null || state.players === undefined ? undefined : state.players;
-    navigate(location.pathname, {
-      replace: true,
-      // state: { gameBackup: gameBackup }
-      // need to specify the following, even if it was already present & correct because replace:true overwrites state
-      // state: { userDetail: userDetail },
-      state: { players: players },
-      // state: { players: playersBackup },
-      // however, game is deliberately excluded, so that the designed logic will work meaning that
-      // any subsequent page refreshes or direct-nav's will pull game data from server API & DB.
-    });
-
-    if (game && user) {
-      console.log(`game has already been set in component`);
-      console.log(`about to subscribe to websocket`);
-      ws.onmessage = (event) => {
-        console.log(`incoming msg ~~~`);
-        try {
-          const data = JSON.parse(event.data);
-          console.log(`Object.entries(data) = ${Object.entries(data)}`);
-          if (
-            typeof data === 'object' &&
-            data.updatedBy !== user._id &&
-            'action' in data
-          ) {
-            console.log(`data.action = ${data.action}`);
-            if (data.action === ACTION.JOIN) {
-              // setGame(data.game); // don't do this, it will reload the whole page
-              navigate(location.pathname, {
-                replace: true,
-                // state: { gameBackup: data.game }, // state.players is retained & updated, but state.game is removed
-                state: { players: data.players },
-              });
-              const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user._id
-              ).userName;
-              notify(`${msg} joined game`);
-            } else if (data.action === ACTION.REENTER) {
-              // navigate(location.pathname, {
-              //   replace: true,
-              //   // state: { gameBackup: data.game }, // state.players is retained & updated, but state.game is removed
-              //   state: { players: data.players },
-              // });
-              const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user._id
-              ).userName;
-              notify(`${msg} re-entered game`);
-            } else if (data.action === ACTION.LEAVE) {
-              const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user._id
-              ).userName;
-              const updatedPlayers = data.players.filter(
-                (p: PlayerDetail) => p.userId !== data.updatedBy
-              );
-              navigate(location.pathname, {
-                replace: true,
-                state: { players: updatedPlayers },
-              });
-              notify(`${msg} left game`);
-            } else if (data.action === ACTION.REST) {
-              const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user._id
-              )?.userName;
-              notify(`${msg} taking rest`);
-            } else if (data.action === ACTION.MOVE) {
-              // navigate(location.pathname, {
-              //   replace: true,
-              //   state: { players: data.players },
-              // });
-              const msg = data.players.find(
-                (p: PlayerDetail) => p.userId !== user._id
-              ).userName;
-              notify(`${msg}, made move`);
-            }
-          }
-        } catch (e) {
-          console.log(e);
-        }
-      };
-      console.log(
-        `${
-          players
-            ? players.find((p: PlayerDetail) => p.userId === user._id)?.userName
-            : undefined
-        } connected to websocket`
-      );
+    if (state.game) {
+      navigate(location.pathname, {
+        replace: true,
+        // need to specify the following, even if it was already present & correct because replace:true overwrites state
+        state: { players: state.players },
+        // however, game is deliberately excluded, so that the designed logic will work meaning that
+        // any subsequent page refreshes or direct-nav's will pull game data from server API & DB.
+      });
     } else {
+      fetchGameBoard();
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
-      // After passing through this branch, useEffect runs a second time, where it will setup websocket in other branch
-      console.log(`game is not set in component`);
-      console.log(`calling fetchGameBoard`);
-      fetchGameBoard();
     }
+
+    // an simple but useful internal flag variable to ctrl. execution of cleanup
+    let changingPage = true;
+    let msg = '';
+
+    if (!user) return;
+    ws.onmessage = (event) => {
+      console.log(`incoming msg ~~~`);
+      try {
+        const data = JSON.parse(event.data);
+        console.log(`Object.entries(data) = ${Object.entries(data)}`);
+        if (
+          typeof data === 'object' &&
+          data.updatedBy !== user._id &&
+          'action' in data
+        ) {
+          console.log(`data.action = ${data.action}`);
+          if (data.action === ACTION.JOIN) {
+            if (state.players) {
+              changingPage = false; // set a flag as false so 1st time round cleanup fnc does not run
+            } else {
+              changingPage = true; // provide alternative as a counter balance so all other times cleanup runs
+            }
+            navigate(location.pathname, {
+              replace: true,
+              state: {
+                playersUpdated: data.players,
+              },
+            });
+            msg = `${
+              data.players.find((p: PlayerDetail) => p.userId !== user._id)
+                .userName
+            } joined game`;
+            notify(msg);
+          } else if (data.action === ACTION.REENTER) {
+            const msg = data.players.find(
+              (p: PlayerDetail) => p.userId !== user._id
+            ).userName;
+            notify(`${msg} re-entered game`);
+          } else if (data.action === ACTION.LEAVE) {
+            const msg = `${
+              data.players.find((p: PlayerDetail) => p.userId !== user._id)
+                .userName
+            } left game`;
+            const updatedPlayers = data.players.filter(
+              (p: PlayerDetail) => p.userId !== data.updatedBy
+            );
+            if (state.players) {
+              changingPage = false;
+            } else {
+              changingPage = true;
+            }
+            navigate(location.pathname, {
+              replace: true,
+              state: {
+                playersUpdated: updatedPlayers,
+              },
+            });
+            notify(msg);
+          } else if (data.action === ACTION.REST) {
+            const msg = data.players.find(
+              (p: PlayerDetail) => p.userId !== user._id
+            )?.userName;
+            notify(`${msg} taking rest`);
+          } else if (data.action === ACTION.MOVE) {
+            const msg = data.players.find(
+              (p: PlayerDetail) => p.userId !== user._id
+            ).userName;
+            notify(`${msg}, made move`);
+          }
+          console.log(`in ws.onmessage event changingPage = ${changingPage}`);
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    };
     return () => {
-      if (ws.readyState === WebSocket.OPEN && game) {
-        // added game to condition to prevent ws connect breaking on page refresh
-        console.log(
-          `${
-            players
-              ? players.find((p: PlayerDetail) => p.userId === user?._id)
-                  ?.userName
-              : undefined
-          } closing websocket connection`
-        );
-        // although this will always run on page unmounting, the Leave game event
-        // will be handled and discarded appropriately by the server
+      console.log(
+        `in useEffect cleanup; changingPage = ${changingPage}, ws.readyState = ${ws.readyState}`
+      );
+      if (ws.readyState === WebSocket.OPEN && changingPage) {
         restFromGame();
+        console.log(`Clean up fnc: ws.readyState = ${ws.readyState}`);
+        console.log(`closing websocket connection`);
         ws.close();
       }
     };
@@ -275,8 +253,9 @@ export default function Game() {
     fetchGameBoard,
     navigate,
     location.pathname,
-    game,
-    players,
+    state.players,
+    state.game,
+    previousPath,
     restFromGame,
   ]);
 
@@ -342,24 +321,14 @@ export default function Game() {
       });
     }
 
-    const findMe = players?.find((p: PlayerDetail) => p.userId === user?._id);
+    const findMe = (state.playersUpdated || state.players).find(
+      (p: PlayerDetail) => p.userId === user?._id
+    );
 
-    if (
-      game.isMulti &&
-      findMe?.color.toString() !== player.toString()
-      // findMe?.color.toString() ===
-      //   game.positions[game.selectedPositions.slice(-1)[0]].status.toString()
-    ) {
+    if (game.isMulti && findMe?.color.toString() !== player.toString()) {
       // abort here if not player's turn
       return;
     }
-    // const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
-    // return lastSelectedPositionNumber.length === 0
-    //   ? PLAYER.BLACK
-    //   : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
-    //     POSITION_STATUS.BLACK
-    //   ? PLAYER.WHITE
-    //   : PLAYER.BLACK;
 
     setErrorMessage('');
     // carry out the selection operation and try making all the necessary updates in the database
@@ -398,21 +367,6 @@ export default function Game() {
       });
       // set the player to whatever the server sends back
       setPlayer(result.player);
-      // if (result.status !== GAMESTATUS.ACTIVE) {
-      //   setGame({
-      //     ...game,
-      //     status: result.status, // status is the one that needs updating, but
-      //     positions: newPositions, // need to set positions & selectedPositions again
-      //     selectedPositions: newSelectedPositions, // otherwise ...game will overwrite them with their original values
-      //   });
-      // } else {
-      //   setPlayer(
-      //     //result.player === POSITION_STATUS.BLACK ? PLAYER.WHITE : PLAYER.BLACK
-      //     // the server will set the player correctly and send in it's res object
-      //     // result.player === POSITION_STATUS.BLACK ? PLAYER.BLACK : PLAYER.WHITE
-      //     result.player
-      //   );
-      // }
       setUpdating(false);
     } catch (err: any) {
       // for any failed database updates
@@ -465,8 +419,7 @@ export default function Game() {
       await put<EnterLeaveGame, GameInfo>(`${API_HOST}/api/game/${gameId}`, {
         action: ACTION.LEAVE,
       });
-
-      setPlayers(players?.filter((p) => p.userId !== user._id));
+      // setPlayers(players?.filter((p) => p.userId !== user._id));
     } catch (err: any) {
       setErrorMessage(err.message);
     }
@@ -522,12 +475,18 @@ export default function Game() {
             {game.status === GAMESTATUS.ACTIVE && (
               <>
                 {' '}
-                {state.players.length === 1 && (
+                {(state.playersUpdated?.length === 1 ||
+                  state.players?.length === 1) && (
                   <button className={style.button} onClick={() => resetGame()}>
                     Restart
                   </button>
                 )}
-                <button className={style.button} onClick={() => navigate('/')}>
+                <button
+                  className={style.button}
+                  onClick={() => {
+                    navigate('/', { state: {} });
+                  }}
+                >
                   Pause
                 </button>
               </>
@@ -535,11 +494,15 @@ export default function Game() {
             <button
               className={style.button}
               onClick={async () => {
+                console.log(`location.pathname = ${location.pathname}`);
                 if (game.status === GAMESTATUS.ACTIVE) {
                   await leaveGame();
-                  navigate('/', { replace: true });
+                  navigate('/', { replace: true, state: {} });
                 } else {
-                  navigate('/games', { replace: true });
+                  navigate('/games', {
+                    replace: true,
+                    state: {},
+                  });
                 }
               }}
             >

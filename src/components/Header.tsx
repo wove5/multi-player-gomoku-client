@@ -24,8 +24,9 @@ export default function Header() {
           <button
             className={style.action}
             onClick={() => {
-              logout();
+              // TODO: need to implement some kind of async await funcionality, so that a final REST from game gets sent
               navigate('/');
+              logout();
             }}
           >
             Logout
@@ -83,9 +84,11 @@ export default function Header() {
               {`Logged in as:`}{' '}
               <span
                 className={getClassName(
-                  state?.players?.find(
-                    (p: PlayerDetail) => p.userId === user?._id
-                  )?.color
+                  state && (state.playersUpdated || state.players)
+                    ? (state.playersUpdated || state.players).find(
+                        (p: PlayerDetail) => p.userId === user?._id
+                      )?.color
+                    : undefined
                 )}
               >
                 {' '}
@@ -94,19 +97,20 @@ export default function Header() {
             </div>
           )}
           {/* {username && state?.gameBackup?.isMulti && ( */}
-          {state?.players?.length === 2 && (
+          {(state?.players?.length === 2 ||
+            state?.playersUpdated?.length === 2) && (
             <div className={style.username}>
               {`Your opponent:`}{' '}
               <span
                 className={getClassName(
-                  state.players.find(
+                  (state.playersUpdated || state.players).find(
                     (p: PlayerDetail) => p.userId !== user?._id
                   )?.color
                 )}
               >
                 {' '}
                 {
-                  state.players.find(
+                  (state.playersUpdated || state.players).find(
                     (p: PlayerDetail) => p.userId !== user?._id
                   )?.userName
                 }{' '}
