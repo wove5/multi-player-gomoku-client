@@ -1,15 +1,16 @@
 import { useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { UserContext } from '../context';
+import { UserContext, GameContext } from '../context';
 
 import style from './Header.module.css';
-import { PLAYER, POSITION_STATUS } from '../constants';
+import { POSITION_STATUS } from '../constants';
 import { PlayerDetail } from '../types';
 
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, username, logout } = useContext(UserContext);
+  const { restFromGame } = useContext(GameContext);
 
   // location.state supplied by either Home page component or Game component page as needed
   const state = location.state;
@@ -24,9 +25,15 @@ export default function Header() {
           <button
             className={style.action}
             onClick={() => {
-              // TODO: need to implement some kind of async await funcionality, so that a final REST from game gets sent
-              navigate('/');
-              logout();
+              if (state.gameId) {
+                restFromGame(state.gameId).then(() => {
+                  logout();
+                  navigate('/', { replace: true, state: {} });
+                });
+              } else {
+                logout();
+                navigate('/');
+              }
             }}
           >
             Logout

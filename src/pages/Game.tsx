@@ -40,7 +40,7 @@ export default function Game() {
   const state = location.state;
 
   const { user, logout } = useContext(UserContext);
-  const { previousPath } = useContext(GameContext);
+  const { previousPath, restFromGame } = useContext(GameContext);
 
   const { gameId = '' } = useParams();
 
@@ -122,19 +122,19 @@ export default function Game() {
     }
   }, [gamePreLoaded, gameId, logout]);
 
-  const restFromGame = useCallback(async () => {
-    try {
-      console.log(`Sending put request to Rest from game`);
-      await put<EnterLeaveGame, RestFromGameReply>(
-        `${API_HOST}/api/game/${gameId}`,
-        {
-          action: ACTION.REST,
-        }
-      );
-    } catch (error) {
-      console.log('something went wrong with taking Rest');
-    }
-  }, [gameId]);
+  // const restFromGame = useCallback(async () => {
+  //   try {
+  //     console.log(`Sending put request to Rest from game`);
+  //     await put<EnterLeaveGame, RestFromGameReply>(
+  //       `${API_HOST}/api/game/${gameId}`,
+  //       {
+  //         action: ACTION.REST,
+  //       }
+  //     );
+  //   } catch (error) {
+  //     console.log('something went wrong with taking Rest');
+  //   }
+  // }, [gameId]);
 
   // a handy utility for use in dev mode.
   // useWhatChanged(
@@ -146,23 +146,26 @@ export default function Game() {
     console.log(`running useEffect fnc`);
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
+    let changingPage = true;
     if (state.game) {
+      // this should only be so on the very first rendering/loading of game page
       navigate(location.pathname, {
         replace: true,
         // need to specify the following, even if it was already present & correct because replace:true overwrites state
-        state: { players: state.players },
+        // state: { players: state.players, gameId: state.game._id },
+        state: { playersUpdated: state.players, gameId: state.game._id },
         // however, game is deliberately excluded, so that the designed logic will work meaning that
         // any subsequent page refreshes or direct-nav's will pull game data from server API & DB.
       });
+      changingPage = false;
     } else {
       fetchGameBoard();
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
     }
-
+    console.log(`in useEffect event changingPage = ${changingPage}`);
     // an simple but useful internal flag variable to ctrl. execution of cleanup
-    let changingPage = true;
     let msg = '';
 
     if (!user) return;
@@ -171,6 +174,7 @@ export default function Game() {
       try {
         const data = JSON.parse(event.data);
         console.log(`Object.entries(data) = ${Object.entries(data)}`);
+        console.log(`data.updatedBy = ${data.updatedBy}`);
         if (
           typeof data === 'object' &&
           data.updatedBy !== user._id &&
@@ -178,15 +182,12 @@ export default function Game() {
         ) {
           console.log(`data.action = ${data.action}`);
           if (data.action === ACTION.JOIN) {
-            if (state.players) {
-              changingPage = false; // set a flag as false so 1st time round cleanup fnc does not run
-            } else {
-              changingPage = true; // provide alternative as a counter balance so all other times cleanup runs
-            }
+            changingPage = false;
             navigate(location.pathname, {
               replace: true,
               state: {
                 playersUpdated: data.players,
+                gameId: gameId,
               },
             });
             msg = `${
@@ -207,15 +208,12 @@ export default function Game() {
             const updatedPlayers = data.players.filter(
               (p: PlayerDetail) => p.userId !== data.updatedBy
             );
-            if (state.players) {
-              changingPage = false;
-            } else {
-              changingPage = true;
-            }
+            changingPage = false;
             navigate(location.pathname, {
               replace: true,
               state: {
                 playersUpdated: updatedPlayers,
+                gameId: gameId,
               },
             });
             notify(msg);
@@ -237,14 +235,29 @@ export default function Game() {
       }
     };
     return () => {
+      const userItem = localStorage.getItem('user');
       console.log(
         `in useEffect cleanup; changingPage = ${changingPage}, ws.readyState = ${ws.readyState}`
       );
-      if (ws.readyState === WebSocket.OPEN && changingPage) {
-        restFromGame();
-        console.log(`Clean up fnc: ws.readyState = ${ws.readyState}`);
-        console.log(`closing websocket connection`);
-        ws.close();
+      if (ws.readyState === WebSocket.OPEN) {
+        if (changingPage) {
+          if (userItem) {
+            // the token needs to be in place to successfully make rest from game api req.
+            // console.log(`userItem = ${userItem}`)
+            restFromGame(gameId).then(() => {
+              console.log(`Clean up fnc: ws.readyState = ${ws.readyState}`);
+              console.log(`closing websocket connection`);
+              ws.close();
+            });
+          } else {
+            // the Logout btn in Header will have called restFromGame(), so token will be gone.
+            // console.log(`userItem = ${userItem}`)
+            console.log(`closing websocket connection`);
+            ws.close();
+          }
+        } else {
+          changingPage = true;
+        }
       }
     };
   }, [
@@ -255,8 +268,10 @@ export default function Game() {
     location.pathname,
     state.players,
     state.game,
-    previousPath,
     restFromGame,
+    gameId,
+    // previousPath,
+    // state.gameId,
   ]);
 
   if (!user) {
