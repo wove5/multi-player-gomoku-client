@@ -10,6 +10,7 @@ interface PositionProps {
   gameStatus: GAMESTATUS;
   // addSelectedPosition is used in game page, not used in game-log page
   addSelectedPosition?: (id: string, posId: number) => Promise<void>;
+  myTurn?: boolean;
   updating?: boolean;
 }
 
@@ -20,6 +21,7 @@ export default function Position(props: PropsWithChildren<PositionProps>) {
     positionStatus,
     gameStatus,
     addSelectedPosition,
+    myTurn,
     updating,
   } = props;
 
@@ -35,6 +37,8 @@ export default function Position(props: PropsWithChildren<PositionProps>) {
       case positionStatus === POSITION_STATUS.NONE &&
         gameStatus !== GAMESTATUS.ACTIVE:
         return style.inactive;
+      case positionStatus === POSITION_STATUS.NONE && !myTurn:
+        return style.inactive;
       default:
         return className;
     }
@@ -45,7 +49,8 @@ export default function Position(props: PropsWithChildren<PositionProps>) {
       updating ||
       positionStatus === POSITION_STATUS.WHITE ||
       positionStatus === POSITION_STATUS.BLACK ||
-      gameStatus !== GAMESTATUS.ACTIVE
+      gameStatus !== GAMESTATUS.ACTIVE ||
+      !myTurn
     )
       return;
     // addSelectedPosition fnc. is optional and may not present

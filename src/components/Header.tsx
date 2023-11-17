@@ -25,7 +25,7 @@ export default function Header() {
           <button
             className={style.action}
             onClick={() => {
-              if (state.gameId) {
+              if (state && state.gameId) {
                 restFromGame(state.gameId).then(() => {
                   logout();
                   navigate('/', { replace: true, state: {} });

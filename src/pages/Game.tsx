@@ -1,6 +1,13 @@
 import style from './Game.module.css';
 import { Message, PageNotFound, Position, SessionExpired } from '../components';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 // import { useWhatChanged } from '@simbathesailor/use-what-changed';
 import { GameContext, UserContext } from '../context';
 import {
@@ -20,7 +27,7 @@ import {
   ResetGame,
   UpdateGame,
 } from '../types';
-import { IncompleteGameData, RestFromGameReply } from '../interfaces';
+import { IncompleteGameData } from '../interfaces';
 import { GameStatus } from '../types/GameStatus';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -48,9 +55,9 @@ export default function Game() {
     state === null || state.game === undefined ? undefined : state.game
   );
 
-  const [gamePreLoaded, setGamePreLoaded] = useState(
-    state !== null && state.game !== undefined
-  );
+  // const [gameLoaded, setGameLoaded] = useState(
+  //   state !== null && state.game !== undefined
+  // );
 
   // create a websocket client connection
   const ws = useMemo(() => new WebSocket(getWebSocketURL()), []);
@@ -80,47 +87,48 @@ export default function Game() {
   const [updating, setUpdating] = useState(false);
 
   const fetchGameBoard = useCallback(async () => {
-    if (!gamePreLoaded) {
-      console.log(`trying an API call`);
-      try {
-        const incompleteGames = await get<IncompleteGameData[]>(
-          `${API_HOST}/api`
-        );
-        if (incompleteGames && !incompleteGames.find((g) => g._id === gameId)) {
-          setLoading(false);
-          setLoadingResultDetermined(true);
-          return;
-        }
-        const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
-        setGame(result);
+    console.log(`gameLoaded = ${gameLoadedRef.current}`);
+    // if (!gameLoadedRef.current) {
+    console.log(`trying an API call`);
+    try {
+      const incompleteGames = await get<IncompleteGameData[]>(
+        `${API_HOST}/api`
+      );
+      if (incompleteGames && !incompleteGames.find((g) => g._id === gameId)) {
         setLoading(false);
         setLoadingResultDetermined(true);
-        const currentBoardPositions = result.positions;
-        const selectedPositionNumbers = result.selectedPositions;
-        const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
-        setPlayer(
-          lastSelectedPositionNumber.length === 0
-            ? PLAYER.BLACK
-            : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
-              POSITION_STATUS.BLACK
-            ? PLAYER.WHITE
-            : PLAYER.BLACK
-        );
-        console.log(`game successfully retrieved from API`);
-        setGamePreLoaded(false);
-      } catch (err: any) {
-        setGame(undefined);
-        setLoading(false);
-        if (
-          err.message === 'Invalid token' ||
-          err.message === 'Token missing' ||
-          err.message === 'Invalid user'
-        ) {
-          logout();
-        }
+        return;
+      }
+      const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
+      setGame(result);
+      setLoading(false);
+      setLoadingResultDetermined(true);
+      const currentBoardPositions = result.positions;
+      const selectedPositionNumbers = result.selectedPositions;
+      const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
+      setPlayer(
+        lastSelectedPositionNumber.length === 0
+          ? PLAYER.BLACK
+          : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
+            POSITION_STATUS.BLACK
+          ? PLAYER.WHITE
+          : PLAYER.BLACK
+      );
+      console.log(`game successfully retrieved from API`);
+      // setGameLoaded(true);
+      gameLoadedRef.current = true;
+    } catch (err: any) {
+      setGame(undefined);
+      setLoading(false);
+      if (
+        err.message === 'Invalid token' ||
+        err.message === 'Token missing' ||
+        err.message === 'Invalid user'
+      ) {
+        logout();
       }
     }
-  }, [gamePreLoaded, gameId, logout]);
+  }, [gameId, logout]);
 
   // const restFromGame = useCallback(async () => {
   //   try {
@@ -138,17 +146,68 @@ export default function Game() {
 
   // a handy utility for use in dev mode.
   // useWhatChanged(
-  //   [ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, previousPath],
+  //   [
+  //     ws,
+  //     user,
+  //     fetchGameBoard,
+  //     navigate,
+  //     location.pathname,
+  //     state.players,
+  //     state.game,
+  //     previousPath,
+  //   ],
   //   'ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, previousPath'
   // );
 
+  const updateGameFromOtherPlayer = useCallback(
+    (
+      id: string,
+      posId: number,
+      status: GAMESTATUS,
+      color: PLAYER,
+      player: PLAYER
+    ) => {
+      if (game) {
+        changingPageRef.current = false;
+        const newPositions = game.positions.map((p) => {
+          return p._id === id
+            ? {
+                ...p,
+                status:
+                  color === PLAYER.BLACK
+                    ? POSITION_STATUS.BLACK
+                    : POSITION_STATUS.WHITE,
+              }
+            : p;
+        });
+        const newSelectedPositions = [...game.selectedPositions, posId];
+        setGame({
+          ...game,
+          status,
+          positions: newPositions,
+          selectedPositions: newSelectedPositions,
+        });
+        // setPlayer(color === PLAYER.BLACK ? PLAYER.WHITE : PLAYER.BLACK);
+        setPlayer(player);
+      } else {
+        return;
+      }
+    },
+    [game]
+  );
+
+  // simple but useful flag variable to ctrl. execution of cleanup
+  let changingPageRef = useRef(false);
+  let gameLoadedRef = useRef(false);
   useEffect(() => {
     console.log(`running useEffect fnc`);
+    // changingPageRef.current = true;
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
-    let changingPage = true;
     if (state.game) {
+      // changingPageRef.current = false;
       // this should only be so on the very first rendering/loading of game page
+      gameLoadedRef.current = true;
       navigate(location.pathname, {
         replace: true,
         // need to specify the following, even if it was already present & correct because replace:true overwrites state
@@ -157,15 +216,23 @@ export default function Game() {
         // however, game is deliberately excluded, so that the designed logic will work meaning that
         // any subsequent page refreshes or direct-nav's will pull game data from server API & DB.
       });
-      changingPage = false;
+      changingPageRef.current = true;
     } else {
-      fetchGameBoard();
+      // changingPageRef.current = false;
+      if (!gameLoadedRef.current) {
+        fetchGameBoard();
+      }
+      // fetchGameBoard().then(() => {
+      //   changingPageRef.current = true;
+      // });
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
+      // changingPageRef.current = true;
     }
-    console.log(`in useEffect event changingPage = ${changingPage}`);
-    // an simple but useful internal flag variable to ctrl. execution of cleanup
+    console.log(
+      `in useEffect event changingPageRef.current = ${changingPageRef.current}`
+    );
     let msg = '';
 
     if (!user) return;
@@ -173,8 +240,8 @@ export default function Game() {
       console.log(`incoming msg ~~~`);
       try {
         const data = JSON.parse(event.data);
-        console.log(`Object.entries(data) = ${Object.entries(data)}`);
-        console.log(`data.updatedBy = ${data.updatedBy}`);
+        // console.log(`Object.entries(data) = ${Object.entries(data)}`);
+        // console.log(`data.updatedBy = ${data.updatedBy}`);
         if (
           typeof data === 'object' &&
           data.updatedBy !== user._id &&
@@ -182,7 +249,7 @@ export default function Game() {
         ) {
           console.log(`data.action = ${data.action}`);
           if (data.action === ACTION.JOIN) {
-            changingPage = false;
+            changingPageRef.current = false;
             navigate(location.pathname, {
               replace: true,
               state: {
@@ -208,7 +275,7 @@ export default function Game() {
             const updatedPlayers = data.players.filter(
               (p: PlayerDetail) => p.userId !== data.updatedBy
             );
-            changingPage = false;
+            changingPageRef.current = false;
             navigate(location.pathname, {
               replace: true,
               state: {
@@ -223,12 +290,28 @@ export default function Game() {
             )?.userName;
             notify(`${msg} taking rest`);
           } else if (data.action === ACTION.MOVE) {
-            const msg = data.players.find(
+            changingPageRef.current = false;
+            const name = data.players.find(
               (p: PlayerDetail) => p.userId !== user._id
             ).userName;
-            notify(`${msg}, made move`);
+            const color = data.players.find(
+              (p: PlayerDetail) => p.userId !== user._id
+            ).color;
+            console.log(`selectedPosId = ${data.selectedPosId}`);
+            console.log(`selectedPosIndex = ${data.selectedPosIndex}`);
+            updateGameFromOtherPlayer(
+              data.selectedPosId,
+              data.selectedPosIndex,
+              data.status,
+              color,
+              data.player
+            );
+            notify(`${name}, made move`);
           }
-          console.log(`in ws.onmessage event changingPage = ${changingPage}`);
+
+          console.log(
+            `in ws.onmessage event changingPageRef.current = ${changingPageRef.current}`
+          );
         }
       } catch (e) {
         console.log(e);
@@ -237,10 +320,11 @@ export default function Game() {
     return () => {
       const userItem = localStorage.getItem('user');
       console.log(
-        `in useEffect cleanup; changingPage = ${changingPage}, ws.readyState = ${ws.readyState}`
+        `in useEffect cleanup; changingPageRef.current = ${changingPageRef.current}, ws.readyState = ${ws.readyState}`
       );
       if (ws.readyState === WebSocket.OPEN) {
-        if (changingPage) {
+        // if (gameLoadedRef.current) {
+        if (changingPageRef.current) {
           if (userItem) {
             // the token needs to be in place to successfully make rest from game api req.
             // console.log(`userItem = ${userItem}`)
@@ -256,8 +340,11 @@ export default function Game() {
             ws.close();
           }
         } else {
-          changingPage = true;
+          changingPageRef.current = true;
+          console.log(`Are we here`);
+          console.log(`changingPageRef.current = ${changingPageRef.current}`);
         }
+        // }
       }
     };
   }, [
@@ -270,8 +357,7 @@ export default function Game() {
     state.game,
     restFromGame,
     gameId,
-    // previousPath,
-    // state.gameId,
+    updateGameFromOtherPlayer,
   ]);
 
   if (!user) {
@@ -302,6 +388,8 @@ export default function Game() {
   }
 
   const updateGame = async (id: string, posId: number) => {
+    console.log(`entered updateGame`);
+    console.log(`changingPageRef.current = ${changingPageRef.current}`);
     if (
       // if a selection had already been made but the db update had failed
       // (this is operating on the client side end only)
@@ -329,6 +417,7 @@ export default function Game() {
       });
       const newSelectedPositions = [...originalSelectedPositions, posId];
 
+      changingPageRef.current = false;
       setGame({
         ...game,
         positions: newPositions,
@@ -361,6 +450,7 @@ export default function Game() {
     });
     const newSelectedPositions = [...game.selectedPositions, posId];
     // set positions & selectedPositions ahead of the api call to make it appear more responsive
+    changingPageRef.current = false;
     setGame({
       ...game,
       positions: newPositions,
@@ -374,6 +464,7 @@ export default function Game() {
           id: id,
         }
       );
+      changingPageRef.current = false;
       setGame({
         ...game,
         status: result.status, // status is the one that needs updating, but
@@ -390,6 +481,7 @@ export default function Game() {
         return p._id === id ? { ...p, status: POSITION_STATUS.YELLOW } : p;
       });
       const newSelectedPositions = [...game.selectedPositions, posId];
+      changingPageRef.current = false;
       setGame({
         ...game,
         positions: newPositions,
@@ -482,6 +574,11 @@ export default function Game() {
                 positionStatus={p.status}
                 gameStatus={game.status}
                 addSelectedPosition={updateGame}
+                myTurn={
+                  (state.playersUpdated || state.players)
+                    .find((p: PlayerDetail) => p.userId === user?._id)
+                    .color.toString() === player.toString()
+                }
                 updating={updating}
               />
             ))}
@@ -492,13 +589,20 @@ export default function Game() {
                 {' '}
                 {(state.playersUpdated?.length === 1 ||
                   state.players?.length === 1) && (
-                  <button className={style.button} onClick={() => resetGame()}>
+                  <button
+                    className={style.button}
+                    onClick={() => {
+                      changingPageRef.current = false;
+                      resetGame();
+                    }}
+                  >
                     Restart
                   </button>
                 )}
                 <button
                   className={style.button}
                   onClick={() => {
+                    changingPageRef.current = true;
                     navigate('/', { state: {} });
                   }}
                 >
@@ -512,6 +616,7 @@ export default function Game() {
                 console.log(`location.pathname = ${location.pathname}`);
                 if (game.status === GAMESTATUS.ACTIVE) {
                   await leaveGame();
+                  changingPageRef.current = true;
                   navigate('/', { replace: true, state: {} });
                 } else {
                   navigate('/games', {
