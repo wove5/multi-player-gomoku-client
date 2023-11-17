@@ -55,10 +55,6 @@ export default function Game() {
     state === null || state.game === undefined ? undefined : state.game
   );
 
-  // const [gameLoaded, setGameLoaded] = useState(
-  //   state !== null && state.game !== undefined
-  // );
-
   // create a websocket client connection
   const ws = useMemo(() => new WebSocket(getWebSocketURL()), []);
 
@@ -88,7 +84,6 @@ export default function Game() {
 
   const fetchGameBoard = useCallback(async () => {
     console.log(`gameLoaded = ${gameLoadedRef.current}`);
-    // if (!gameLoadedRef.current) {
     console.log(`trying an API call`);
     try {
       const incompleteGames = await get<IncompleteGameData[]>(
@@ -115,7 +110,6 @@ export default function Game() {
           : PLAYER.BLACK
       );
       console.log(`game successfully retrieved from API`);
-      // setGameLoaded(true);
       gameLoadedRef.current = true;
     } catch (err: any) {
       setGame(undefined);
@@ -129,20 +123,6 @@ export default function Game() {
       }
     }
   }, [gameId, logout]);
-
-  // const restFromGame = useCallback(async () => {
-  //   try {
-  //     console.log(`Sending put request to Rest from game`);
-  //     await put<EnterLeaveGame, RestFromGameReply>(
-  //       `${API_HOST}/api/game/${gameId}`,
-  //       {
-  //         action: ACTION.REST,
-  //       }
-  //     );
-  //   } catch (error) {
-  //     console.log('something went wrong with taking Rest');
-  //   }
-  // }, [gameId]);
 
   // a handy utility for use in dev mode.
   // useWhatChanged(
@@ -187,7 +167,6 @@ export default function Game() {
           positions: newPositions,
           selectedPositions: newSelectedPositions,
         });
-        // setPlayer(color === PLAYER.BLACK ? PLAYER.WHITE : PLAYER.BLACK);
         setPlayer(player);
       } else {
         return;
@@ -201,34 +180,26 @@ export default function Game() {
   let gameLoadedRef = useRef(false);
   useEffect(() => {
     console.log(`running useEffect fnc`);
-    // changingPageRef.current = true;
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
     if (state.game) {
-      // changingPageRef.current = false;
       // this should only be so on the very first rendering/loading of game page
       gameLoadedRef.current = true;
       navigate(location.pathname, {
         replace: true,
         // need to specify the following, even if it was already present & correct because replace:true overwrites state
-        // state: { players: state.players, gameId: state.game._id },
         state: { playersUpdated: state.players, gameId: state.game._id },
         // however, game is deliberately excluded, so that the designed logic will work meaning that
-        // any subsequent page refreshes or direct-nav's will pull game data from server API & DB.
+        // subsequent page refreshes or direct-nav's will pull game data from server API & DB via alt. branch.
       });
       changingPageRef.current = true;
     } else {
-      // changingPageRef.current = false;
       if (!gameLoadedRef.current) {
         fetchGameBoard();
       }
-      // fetchGameBoard().then(() => {
-      //   changingPageRef.current = true;
-      // });
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
-      // changingPageRef.current = true;
     }
     console.log(
       `in useEffect event changingPageRef.current = ${changingPageRef.current}`
@@ -240,8 +211,6 @@ export default function Game() {
       console.log(`incoming msg ~~~`);
       try {
         const data = JSON.parse(event.data);
-        // console.log(`Object.entries(data) = ${Object.entries(data)}`);
-        // console.log(`data.updatedBy = ${data.updatedBy}`);
         if (
           typeof data === 'object' &&
           data.updatedBy !== user._id &&
@@ -323,11 +292,9 @@ export default function Game() {
         `in useEffect cleanup; changingPageRef.current = ${changingPageRef.current}, ws.readyState = ${ws.readyState}`
       );
       if (ws.readyState === WebSocket.OPEN) {
-        // if (gameLoadedRef.current) {
         if (changingPageRef.current) {
           if (userItem) {
             // the token needs to be in place to successfully make rest from game api req.
-            // console.log(`userItem = ${userItem}`)
             restFromGame(gameId).then(() => {
               console.log(`Clean up fnc: ws.readyState = ${ws.readyState}`);
               console.log(`closing websocket connection`);
@@ -335,7 +302,6 @@ export default function Game() {
             });
           } else {
             // the Logout btn in Header will have called restFromGame(), so token will be gone.
-            // console.log(`userItem = ${userItem}`)
             console.log(`closing websocket connection`);
             ws.close();
           }
@@ -344,7 +310,6 @@ export default function Game() {
           console.log(`Are we here`);
           console.log(`changingPageRef.current = ${changingPageRef.current}`);
         }
-        // }
       }
     };
   }, [
