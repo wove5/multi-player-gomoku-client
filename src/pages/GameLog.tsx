@@ -3,7 +3,7 @@ import { PageNotFound, Position, SessionExpired } from '../components';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { GameContext, UserContext } from '../context';
 import { API_HOST, GAMESTATUS } from '../constants';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { GameInfo } from '../types';
 import { CompletedGameData } from '../interfaces';
 import { get } from '../utils/http';
@@ -11,6 +11,7 @@ import { get } from '../utils/http';
 export default function GameLog() {
   const { user, logout } = useContext(UserContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const { previousPath } = useContext(GameContext);
   const { gameId } = useParams();
   const [game, setGame] = useState<GameInfo | undefined>(undefined);
@@ -29,10 +30,14 @@ export default function GameLog() {
         setLoadingResultDetermined(true);
         return;
       }
-      const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
+      const result = await get<GameInfo>(`${API_HOST}/api/game-log/${gameId}`);
       setGame(result);
       setLoading(false);
       setLoadingResultDetermined(true);
+      navigate(location.pathname, {
+        replace: true,
+        state: { playersUpdated: result.players },
+      });
     } catch (err: any) {
       setGame(undefined);
       setLoading(false);
@@ -44,7 +49,7 @@ export default function GameLog() {
         logout();
       }
     }
-  }, [logout, gameId]);
+  }, [gameId, navigate, location.pathname, logout]);
 
   useEffect(() => {
     fetchGameBoard();

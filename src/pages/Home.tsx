@@ -119,7 +119,6 @@ export default function Home() {
   };
 
   const resumeGame = async (gameId: string) => {
-    //TODO: refactor ACTION type of action arg to something better; ACTION.LEAVE is a possible value,and should not be
     try {
       setRetrievingGame(true);
       setAttemptGameRetrieval(true);

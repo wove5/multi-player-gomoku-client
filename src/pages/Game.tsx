@@ -52,7 +52,9 @@ export default function Game() {
   const { gameId = '' } = useParams();
 
   const [game, setGame] = useState<GameInfo | undefined>(
-    state === null || state.game === undefined ? undefined : state.game
+    state === null || state === undefined || state.game === undefined
+      ? undefined
+      : state.game
   );
 
   // create a websocket client connection
@@ -62,7 +64,7 @@ export default function Game() {
 
   // infer player from game if loaded via state, otherwise, just set to BLACK for now - it is set again in useEffect
   const [player, setPlayer] = useState<PLAYER>(
-    state === null || state.game === undefined
+    state === null || state === undefined || state.game === undefined
       ? PLAYER.BLACK
       : () => {
           const currentBoardPositions = state.game.positions;
@@ -109,6 +111,10 @@ export default function Game() {
           ? PLAYER.WHITE
           : PLAYER.BLACK
       );
+      navigate(location.pathname, {
+        replace: true,
+        state: { playersUpdated: result.players, gameId },
+      });
       console.log(`game successfully retrieved from API`);
       gameLoadedRef.current = true;
     } catch (err: any) {
@@ -122,7 +128,7 @@ export default function Game() {
         logout();
       }
     }
-  }, [gameId, logout]);
+  }, [gameId, location.pathname, logout, navigate]);
 
   // a handy utility for use in dev mode.
   // useWhatChanged(
@@ -182,7 +188,7 @@ export default function Game() {
     console.log(`running useEffect fnc`);
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
-    if (state.game) {
+    if (state?.game !== undefined) {
       // this should only be so on the very first rendering/loading of game page
       gameLoadedRef.current = true;
       navigate(location.pathname, {
@@ -193,10 +199,8 @@ export default function Game() {
         // subsequent page refreshes or direct-nav's will pull game data from server API & DB via alt. branch.
       });
       changingPageRef.current = true;
-    } else {
-      if (!gameLoadedRef.current) {
-        fetchGameBoard();
-      }
+    } else if (!gameLoadedRef.current) {
+      fetchGameBoard();
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
@@ -318,8 +322,8 @@ export default function Game() {
     fetchGameBoard,
     navigate,
     location.pathname,
-    state.players,
-    state.game,
+    state?.players,
+    state?.game,
     restFromGame,
     gameId,
     updateGameFromOtherPlayer,
@@ -540,9 +544,9 @@ export default function Game() {
                 gameStatus={game.status}
                 addSelectedPosition={updateGame}
                 myTurn={
-                  (state.playersUpdated || state.players)
+                  (state?.playersUpdated || state?.players)
                     .find((p: PlayerDetail) => p.userId === user?._id)
-                    .color.toString() === player.toString()
+                    .color.toString() === player.toString() || !game.isMulti
                 }
                 updating={updating}
               />
