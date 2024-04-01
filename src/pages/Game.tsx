@@ -32,6 +32,7 @@ import { GameStatus } from '../types/GameStatus';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 const getWebSocketURL = () => {
+  // if (!API_HOST) return `ws://localhost:8080`;
   if (!API_HOST) return `ws://${window.location.hostname}:8080`;
   const hostURL = new URL(API_HOST);
   return `${hostURL.protocol === 'https:' ? `wss` : `ws`}://${
@@ -58,7 +59,10 @@ export default function Game() {
   );
 
   // create a websocket client connection
-  const ws = useMemo(() => new WebSocket(getWebSocketURL()), []);
+  const ws = useMemo(
+    () => new WebSocket(`${getWebSocketURL()}?gameId=${gameId}`),
+    [gameId]
+  );
 
   const notify = (message: string) => toast(message);
 
