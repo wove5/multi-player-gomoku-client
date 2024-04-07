@@ -60,8 +60,12 @@ export default function Game() {
 
   // create a websocket client connection
   const ws = useMemo(
-    () => new WebSocket(`${getWebSocketURL()}?gameId=${gameId}`),
-    [gameId]
+    () =>
+      new WebSocket(`${getWebSocketURL()}?gameId=${gameId}`, [
+        'chat',
+        `${user?.token}`,
+      ]),
+    [gameId, user?.token]
   );
 
   const notify = (message: string) => toast(message);
