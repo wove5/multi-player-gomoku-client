@@ -294,8 +294,18 @@ export default function Game() {
             `in ws.onmessage event changingPageRef.current = ${changingPageRef.current}`
           );
         }
-      } catch (e) {
-        console.log(e);
+      } catch (error) {
+        if (game && game.isMulti) {
+          console.log(
+            (state.playersUpdated || state.players).find(
+              (p: PlayerDetail) => p.userId !== user?._id
+            ).userName +
+              ': ' +
+              event.data
+          );
+        } else {
+          console.log(error);
+        }
       }
     };
     return () => {
@@ -330,11 +340,13 @@ export default function Game() {
     fetchGameBoard,
     navigate,
     location.pathname,
-    state?.players,
-    state?.game,
+    state.players,
+    state.game,
     restFromGame,
     gameId,
     updateGameFromOtherPlayer,
+    state.playersUpdated,
+    game,
   ]);
 
   if (!user) {
