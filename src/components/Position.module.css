@@ -23,6 +23,7 @@
   composes: position;
   cursor: default;
 }
+
 .black {
   composes: inactive;
   color: white;
@@ -38,4 +39,24 @@
 .error {
   composes: position;
   background-color: yellow;
+}
+
+.position-shrunk {
+  height: 1.3333rem;
+  width: 1.3333rem;
+}
+
+.outer-shrunk {
+  height: 2rem;
+  width: 2rem;
+}
+
+.position-board-shrunk {
+  height: 0.5rem;
+  width: 0.5rem;
+}
+
+.outer-board-shrunk {
+  height: 0.75rem;
+  width: 0.75rem;
 }

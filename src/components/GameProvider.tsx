@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import { GameContext } from '../context';
+import { useContext, useEffect } from 'react';
+import { GameContext, UserContext } from '../context';
 import { useLocation } from 'react-router-dom';
-import { EnterLeaveGame } from '../types';
+import { EnterLeaveGame, PlayerDetail } from '../types';
 import { RestFromGameReply } from '../interfaces';
 import { ACTION, API_HOST } from '../constants';
 import { put } from '../utils/http';
@@ -13,6 +13,25 @@ interface GameProviderProps {
 export default function GameProvider({ children }: GameProviderProps) {
   const location = useLocation();
   let currentPath = location.pathname;
+  const state = location.state;
+  const { user } = useContext(UserContext);
+
+  const players: Array<PlayerDetail> | undefined =
+    state && (state.playersUpdated || state.players);
+
+  const me: PlayerDetail =
+    state && (state.playersUpdated || state.players)
+      ? (state.playersUpdated || state.players).find(
+          (p: PlayerDetail) => p.userId === user?._id
+        )
+      : undefined;
+
+  const otherPlayer: PlayerDetail =
+    state && (state.playersUpdated || state.players)
+      ? (state.playersUpdated || state.players).find(
+          (p: PlayerDetail) => p.userId !== user?._id
+        )
+      : undefined;
 
   // extract "currentPath" from localStorage
   const getCurrentPath = (): string => {
@@ -48,6 +67,9 @@ export default function GameProvider({ children }: GameProviderProps) {
         currentPath,
         previousPath,
         restFromGame,
+        players,
+        me,
+        otherPlayer,
       }}
     >
       {children}

@@ -8,3 +8,4 @@ export { default as Message } from './Message';
 export { default as UserProvider } from './UserProvider';
 export { default as PageNotFound } from './PageNotFound';
 export { default as SessionExpired } from './SessionExpired';
+export { default as Chat } from './Chat';

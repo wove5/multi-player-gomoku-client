@@ -36,4 +36,10 @@ export enum GAME_MODE {
   NONE = 'NONE',
 }
 
+export enum GAME_BOARD_ALIGN {
+  LEFT = 'LEFT',
+  CENTRE = 'CENTRE',
+  RIGHT = 'RIGHT',
+}
+
 export const API_HOST = process.env.REACT_APP_API_HOST || '';

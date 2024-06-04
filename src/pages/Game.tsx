@@ -1,5 +1,12 @@
 import style from './Game.module.css';
-import { Message, PageNotFound, Position, SessionExpired } from '../components';
+// import Chat from '../components/Chat';
+import {
+  Chat,
+  Message,
+  PageNotFound,
+  Position,
+  SessionExpired,
+} from '../components';
 import {
   useCallback,
   useContext,
@@ -16,6 +23,7 @@ import {
   API_HOST,
   ACTION,
   PLAYER,
+  GAME_BOARD_ALIGN,
 } from '../constants';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
@@ -31,6 +39,8 @@ import { IncompleteGameData } from '../interfaces';
 import { GameStatus } from '../types/GameStatus';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useMediaQuery } from '../hooks';
+
 const getWebSocketURL = () => {
   // if (!API_HOST) return `ws://localhost:8080`;
   if (!API_HOST) return `ws://${window.location.hostname}:8080`;
@@ -48,7 +58,22 @@ export default function Game() {
   const state = location.state;
 
   const { user, logout } = useContext(UserContext);
-  const { previousPath, restFromGame } = useContext(GameContext);
+  const { previousPath, restFromGame, players } = useContext(GameContext);
+
+  // const me: PlayerDetail | undefined = useMemo(
+  //   () =>
+  //     players
+  //       ? players.find((p: PlayerDetail) => p.userId === user?._id)
+  //       : undefined,
+  //   [players, user?._id]
+  // );
+  const otherPlayer: PlayerDetail | undefined = useMemo(
+    () =>
+      players
+        ? players.find((p: PlayerDetail) => p.userId !== user?._id)
+        : undefined,
+    [players, user?._id]
+  );
 
   const { gameId = '' } = useParams();
 
@@ -57,6 +82,29 @@ export default function Game() {
       ? undefined
       : state.game
   );
+
+  const [gameBoardAlign, setGameBoardAlign] = useState<GAME_BOARD_ALIGN>(
+    GAME_BOARD_ALIGN.CENTRE
+  );
+
+  const [rows, cols] = game ? game.size : [0, 0];
+  const gameWrapperWidth =
+    cols * 3 + (cols - 1) * 0.5 + (1 + 1) + (1.25 + 1.25);
+  const chatWrapperWidth = 2 * (15 + 2 * (1.25 + 0.625));
+  const thresholdWidth = gameWrapperWidth + 15 + 2 * (1.25 + 0.625) + 6;
+  const hideLeftRightBtns = useMediaQuery(`(max-width: ${thresholdWidth}rem)`);
+  const maxThresholdWidthGameCentred = gameWrapperWidth + chatWrapperWidth + 8;
+  const maxChatWrapperWidth = chatWrapperWidth + 3;
+  const shrinkBoardPositions = useMediaQuery(`(max-width: 600px)`);
+
+  const [shrinkBoard, setShrinkBoard] = useState(false);
+
+  interface Message {
+    message: string;
+    userId: string;
+    userName: string;
+  }
+  const [messages, setMessages] = useState<Array<Message>>([]);
 
   // create a websocket client connection
   const ws = useMemo(
@@ -138,21 +186,6 @@ export default function Game() {
     }
   }, [gameId, location.pathname, logout, navigate]);
 
-  // a handy utility for use in dev mode.
-  // useWhatChanged(
-  //   [
-  //     ws,
-  //     user,
-  //     fetchGameBoard,
-  //     navigate,
-  //     location.pathname,
-  //     state.players,
-  //     state.game,
-  //     previousPath,
-  //   ],
-  //   'ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, previousPath'
-  // );
-
   const updateGameFromOtherPlayer = useCallback(
     (
       id: string,
@@ -188,6 +221,40 @@ export default function Game() {
     },
     [game]
   );
+
+  const updateMessages = useCallback((msg: Message) => {
+    // setMessages([
+    //   ...messages,
+    //   { message: msg.message, userId: msg.userId, userName: msg.userName },
+    // ]);
+
+    // the functional update ensures messages is not referenced directly and does not trigger rerenders.
+    setMessages((messages) => [
+      ...messages,
+      {
+        message: msg.message,
+        userId: msg.userId,
+        userName: msg.userName,
+      },
+    ]);
+  }, []);
+
+  // // a handy utility for use in dev mode.
+  // useWhatChanged(
+  //   [
+  //     ws,
+  //     user,
+  //     fetchGameBoard,
+  //     navigate,
+  //     location.pathname,
+  //     state.players,
+  //     state.game,
+  //     previousPath,
+  //     updateMessages,
+  //     otherPlayer,
+  //   ],
+  //   'ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, previousPath, updateMessages, otherPlayer'
+  // );
 
   // simple but useful flag variable to ctrl. execution of cleanup
   let changingPageRef = useRef(false);
@@ -293,6 +360,19 @@ export default function Game() {
           console.log(
             `in ws.onmessage event changingPageRef.current = ${changingPageRef.current}`
           );
+        } else if (
+          typeof data === 'object' &&
+          'userId' in data &&
+          'message' in data &&
+          'userName' in data &&
+          data.userId !== user._id &&
+          otherPlayer
+        ) {
+          updateMessages({
+            message: data.message,
+            userId: otherPlayer.userId,
+            userName: otherPlayer.userName,
+          });
         }
       } catch (error) {
         if (game && game.isMulti) {
@@ -347,7 +427,15 @@ export default function Game() {
     updateGameFromOtherPlayer,
     state.playersUpdated,
     game,
+    otherPlayer,
+    updateMessages,
   ]);
+
+  useEffect(() => {
+    if (!hideLeftRightBtns) {
+      setShrinkBoard(false);
+    }
+  }, [hideLeftRightBtns]);
 
   if (!user) {
     return <SessionExpired styleName={style['loading-result']} />;
@@ -521,6 +609,10 @@ export default function Game() {
     }
   };
 
+  const expandBoard = () => {
+    setShrinkBoard(false);
+  };
+
   const gameStateLabel = () => {
     switch (game.status) {
       case GAMESTATUS.ACTIVE:
@@ -533,14 +625,26 @@ export default function Game() {
         return '';
     }
   };
-  const [rows, cols] = game.size;
+
   const dateInfoString = `created ${
     new Date(game.createdAt).toLocaleString().split(',')[0]
   }`;
 
   return (
     <>
-      <div className={style.container}>
+      <div
+        className={`${style.container} ${
+          hideLeftRightBtns ||
+          (!hideLeftRightBtns && gameBoardAlign === GAME_BOARD_ALIGN.CENTRE)
+            ? ' ' + style['container-direction-column']
+            : ''
+        } ${
+          !hideLeftRightBtns && gameBoardAlign === GAME_BOARD_ALIGN.RIGHT
+            ? ' ' + style['container-reverse-flex-direction']
+            : ''
+        }
+        }`}
+      >
         <div className={style['game-wrapper']}>
           <div className={style['game-title-state-wrapper']}>
             <span
@@ -549,30 +653,113 @@ export default function Game() {
             <span className={style['game-state-info']}>{dateInfoString}</span>
             <span className={style['game-state-info']}>{gameStateLabel()}</span>
           </div>
-          <div
-            className={style.board}
-            style={{
-              gridTemplateColumns: `repeat(${cols}, 3rem)`,
-            }}
-          >
-            {game.positions.map((p, idx) => (
-              <Position
-                key={p._id}
-                id={p._id}
-                posId={idx}
-                positionStatus={p.status}
-                gameStatus={game.status}
-                addSelectedPosition={updateGame}
-                myTurn={
-                  (state?.playersUpdated || state?.players)
-                    .find((p: PlayerDetail) => p.userId === user?._id)
-                    .color.toString() === player.toString() || !game.isMulti
-                }
-                updating={updating}
-              />
-            ))}
+          <div className={style['board-wrapper']}>
+            <button
+              className={`${style['pushable-lhs']}${
+                hideLeftRightBtns
+                  ? ' ' + style['hide-side-btns']
+                  : gameBoardAlign === GAME_BOARD_ALIGN.LEFT
+                  ? ' ' + style['hide-left-btn']
+                  : ''
+              }`}
+              onClick={() => {
+                if (gameBoardAlign === GAME_BOARD_ALIGN.RIGHT)
+                  setGameBoardAlign(GAME_BOARD_ALIGN.CENTRE);
+                else setGameBoardAlign(GAME_BOARD_ALIGN.LEFT);
+              }}
+            >
+              <span className={style['front-lhs']}>&laquo;</span>
+            </button>
+            <div
+              className={`${style.board}${
+                hideLeftRightBtns && shrinkBoard
+                  ? ' ' + style['shrink-board']
+                  : ''
+              }`}
+              style={{
+                gridTemplateColumns: `repeat(${cols}, ${
+                  hideLeftRightBtns && shrinkBoard
+                    ? 0.75
+                    : cols > 7 && shrinkBoardPositions
+                    ? 2
+                    : 3
+                }rem)`,
+              }}
+              data-bg-text={'TOUCH or CLICK TO CONTINUE'}
+              onClick={
+                hideLeftRightBtns && shrinkBoard
+                  ? () => expandBoard()
+                  : () => null
+              }
+            >
+              {game.positions.map((p, idx) => (
+                <Position
+                  cols={cols}
+                  shrinkBoardPositions={shrinkBoardPositions}
+                  hideLeftRightBtns={hideLeftRightBtns}
+                  shrinkBoard={shrinkBoard}
+                  key={p._id}
+                  id={p._id}
+                  posId={idx}
+                  positionStatus={p.status}
+                  gameStatus={game.status}
+                  addSelectedPosition={updateGame}
+                  expandBoard={expandBoard}
+                  myTurn={
+                    (state?.playersUpdated || state?.players)
+                      .find((p: PlayerDetail) => p.userId === user?._id)
+                      .color.toString() === player.toString() || !game.isMulti
+                  }
+                  updating={updating}
+                />
+              ))}
+            </div>
+            <button
+              className={`${style['pushable-rhs']}${
+                hideLeftRightBtns
+                  ? ' ' + style['hide-side-btns']
+                  : gameBoardAlign === GAME_BOARD_ALIGN.RIGHT
+                  ? ' ' + style['hide-right-btn']
+                  : ''
+              }`}
+              onClick={() => {
+                if (gameBoardAlign === GAME_BOARD_ALIGN.LEFT)
+                  setGameBoardAlign(GAME_BOARD_ALIGN.CENTRE);
+                else setGameBoardAlign(GAME_BOARD_ALIGN.RIGHT);
+              }}
+            >
+              <span className={style['front-rhs']}>&raquo;</span>
+            </button>
           </div>
-          <div className={style['control-buttons']}>
+          {!shrinkBoard && (
+            <button
+              className={`${style.pushable} ${
+                !hideLeftRightBtns ? ' ' + style['pushable-hide'] : ''
+              }`}
+              onClick={() => {
+                setShrinkBoard(!shrinkBoard);
+              }}
+            >
+              <span className={style.front}>&laquo;&nbsp;</span>
+            </button>
+          )}
+          <div
+            className={`${style['control-buttons']}${
+              shrinkBoard && otherPlayer && game.status === GAMESTATUS.ACTIVE
+                ? ' ' + style['ctrl-btns-board-shrunk']
+                : !shrinkBoard &&
+                  hideLeftRightBtns &&
+                  otherPlayer &&
+                  game.status === GAMESTATUS.ACTIVE
+                ? ' ' + style['transform-ctrl-btns']
+                : ''
+            }${`${
+              shrinkBoard && otherPlayer && cols < 7
+                ? ' ' + style['ctrl-btns-board-shrunk-less-than-7x7']
+                : ''
+            }`}
+            }`}
+          >
             {game.status === GAMESTATUS.ACTIVE && (
               <>
                 {' '}
@@ -627,9 +814,25 @@ export default function Game() {
             <span className={style['loading-state']}>updating game</span>
           )}
         </div>
+        <div
+          className={style['chat-wrapper']}
+          style={
+            !hideLeftRightBtns && gameBoardAlign !== GAME_BOARD_ALIGN.CENTRE
+              ? { maxWidth: `${maxChatWrapperWidth}rem` }
+              : { maxWidth: `${maxThresholdWidthGameCentred}rem` }
+          }
+        >
+          <Chat
+            ws={ws}
+            messages={messages}
+            updateMessages={updateMessages}
+            cols={cols}
+          />
+        </div>
       </div>
       <ToastContainer
-        position="top-center"
+        // position="top-center"
+        position="top-left"
         // autoClose={false}
         className={style['toast-container']}
         toastClassName={style['toast-wrapper']}

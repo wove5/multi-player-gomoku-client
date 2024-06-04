@@ -7,6 +7,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { GameInfo } from '../types';
 import { CompletedGameData } from '../interfaces';
 import { get } from '../utils/http';
+import { useMediaQuery } from '../hooks';
 
 export default function GameLog() {
   const { user, logout } = useContext(UserContext);
@@ -18,6 +19,8 @@ export default function GameLog() {
 
   const [loading, setLoading] = useState(true);
   const [loadingResultDetermined, setLoadingResultDetermined] = useState(false);
+
+  const shrinkBoardPositions = useMediaQuery(`(max-width: 600px)`);
 
   const fetchGameBoard = useCallback(async () => {
     try {
@@ -117,11 +120,15 @@ export default function GameLog() {
           <div
             className={style.board}
             style={{
-              gridTemplateColumns: `repeat(${cols}, 3rem)`,
+              gridTemplateColumns: `repeat(${cols}, ${
+                cols > 7 && shrinkBoardPositions ? 2 : 3
+              }rem)`,
             }}
           >
             {game.positions.map((p, idx) => (
               <Position
+                cols={cols}
+                shrinkBoardPositions={shrinkBoardPositions}
                 key={p._id}
                 id={p._id}
                 posId={idx}

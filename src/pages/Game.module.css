@@ -1,30 +1,226 @@
 .container {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-  width: 90%;
-  max-width: 1200px;
-  margin: 2rem auto;
+  justify-content: space-evenly;
+  padding: 7rem 0 0;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.container-direction-column {
+  flex-direction: column;
+}
+
+.container-reverse-flex-direction {
+  flex-direction: row-reverse;
 }
 
 .game-wrapper {
-  display: inline-flex;
+  position: sticky;
+  top: 7rem;
+  align-self: center;
+  display: flex;
   flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
   row-gap: 10px;
-  width: min-content;
+  /* padding: 0.5rem 1.25rem 1.5rem; // inconsistent gap at top of 7x7 & 10x10 games */
+  padding: 0.5rem 0 0;
+  z-index: 1;
+}
+
+.board-wrapper {
+  display: flex;
+  align-items: center;
 }
 
 .board {
+  position: relative;
   display: grid;
   gap: 0.5rem;
   background-color: olive;
+  z-index: 3;
+}
+
+.shrink-board {
+  /* gap: 1rem; */
+  gap: 0.6667rem;
+}
+
+.shrink-board::after {
+  justify-self: center;
+  color: darkcyan;
+  content: attr(data-bg-text);
+  font-size: 1.8rem;
+  font: bolder;
+  text-align: center;
+  position: absolute;
+  z-index: -1;
+}
+
+.pushable-lhs {
+  display: flex;
+  background: hsl(340deg 100% 32%);
+  width: 1rem;
+  height: 3rem;
+  border-radius: 1rem 0 0 1rem;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline-offset: 4px;
+  transform: translateY(4px);
+}
+
+.pushable-lhs-cnr {
+  align-self: flex-start;
+  width: 4rem;
+  height: 3rem;
+  border-radius: 1rem 1rem 1rem 1rem;
+  transform: translate(2rem, -2rem) rotate(-45deg);
+  z-index: -1;
+}
+
+.front-lhs {
+  display: block;
+  background: hsl(345deg 100% 47%);
+  width: 1rem;
+  height: 3rem;
+  border: 1px solid;
+  border-radius: 1rem 0 0 1rem;
+  font-size: 2rem;
+  color: #000;
+  transform: translateY(-6px);
+}
+
+.front-lhs-cnr {
+  width: 4rem;
+  border-radius: 1rem 1rem 1rem 1rem;
+  text-align: start;
+  transform: translate(6px, 6px);
+}
+
+.pushable-lhs:active .front-lhs {
+  transform: translateY(-2px);
+}
+
+.pushable-lhs:hover .front-lhs {
+  background: yellow;
+}
+
+.pushable-rhs {
+  background: hsl(340deg 100% 32%);
+  width: 1rem;
+  height: 3rem;
+  border-radius: 0 1rem 1rem 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline-offset: 4px;
+  transform: translateY(4px);
+}
+
+.pushable-rhs-cnr {
+  align-self: flex-end;
+  width: 4rem;
+  height: 3rem;
+  border-radius: 1rem 1rem 1rem 1rem;
+  transform: translate(-2rem, 2rem) rotate(45deg);
+  z-index: -1;
+}
+
+.front-rhs {
+  display: block;
+  background: hsl(345deg 100% 47%);
+  width: 1rem;
+  height: 3rem;
+  border: 1px solid;
+  border-radius: 0 1rem 1rem 0;
+  font-size: 2rem;
+  font-stretch: condensed;
+  color: #000;
+  transform: translateY(-6px);
+}
+
+.front-rhs-cnr {
+  width: 4rem;
+  border-radius: 1rem 1rem 1rem 1rem;
+  text-align: end;
+  transform: translate(-6px, -6px);
+}
+
+.hide-side-btns {
+  display: none;
+}
+
+.hide-left-btn {
+  visibility: hidden;
+}
+
+.hide-right-btn {
+  visibility: hidden;
+}
+
+.pushable-rhs:active .front-rhs {
+  transform: translateY(-2px);
+}
+
+.pushable-rhs:hover .front-rhs {
+  background: yellow;
+}
+
+.corner-shrink-btns {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  transform: translateY(-1rem);
+  z-index: -1;
+}
+
+.pushable {
+  background: hsl(340deg 100% 32%);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline-offset: 4px;
+  width: 5rem;
+  height: 4rem;
+  border-radius: 1rem 1rem 1rem 1rem;
+  transform: translate(0.125rem, -1.25rem) rotate(90deg);
+  z-index: 2;
+}
+
+.pushable:active .front {
+  transform: translateY(-2px);
+}
+
+.pushable-hide {
+  display: none;
+}
+
+.front {
+  display: block;
+  background: hsl(345deg 100% 47%);
+  border: 1px solid;
+  font-size: 2rem;
+  color: #000;
+  width: 5rem;
+  height: 4rem;
+  border-radius: 1rem 1rem 1rem 1rem;
+  line-height: 3rem;
+  text-align: right;
+  transform: translate(-6px, 6px);
 }
 
 .game-title-state-wrapper {
-  display: inline-flex;
-  flex-direction: column;
-  row-gap: 10px;
+  align-self: center;
+  justify-content: space-evenly;
+  display: flex;
+  width: 80%;
+  max-width: 23rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  background-color: white;
+  border: 1px solid lightgray;
 }
 
 .game-title {
@@ -46,8 +242,24 @@
 }
 
 .control-buttons {
+  width: 100%;
   display: flex;
   justify-content: space-around;
+  z-index: 1;
+}
+
+.ctrl-btns-board-shrunk {
+  position: fixed;
+  top: 12rem;
+  justify-content: space-between;
+}
+
+.ctrl-btns-board-shrunk-less-than-7x7 {
+  justify-content: space-around;
+}
+
+.transform-ctrl-btns {
+  transform: translate(0, -4rem);
 }
 
 .button {
@@ -60,7 +272,7 @@
   cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
-  padding: 1rem 1rem;
+  /* padding: 1rem 1rem; */
   touch-action: manipulation;
   transition: background-color 0.167s cubic-bezier(0.4, 0, 0.2, 1) 0s,
     box-shadow 0.167s cubic-bezier(0.4, 0, 0.2, 1) 0s,
@@ -126,4 +338,12 @@
 
 .toast-wrapper {
   width: max-content;
+}
+
+.chat-wrapper {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 5rem;
 }
