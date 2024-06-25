@@ -12,12 +12,8 @@
   flex-direction: column;
   align-items: center;
   position: fixed;
-  bottom: 1rem;
+  bottom: 0.3rem;
   margin: 10px 0px 0px;
-}
-
-.bottom-10x10 {
-  bottom: 3rem;
 }
 
 .messages {
@@ -77,10 +73,11 @@
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
-  align-items: flex-end;
+  align-items: center;
 }
 
 .grow-wrap {
+  visibility: hidden;
   display: grid;
 }
 
@@ -110,13 +107,37 @@
 }
 
 .button {
+  visibility: hidden;
   border-radius: 10px;
   font-size: 20px;
-  background-color: indigo;
+  background-color: #4f58df;
   color: #fff;
-  border: none;
+  border: 2;
   padding: 10px 25px;
+  font-weight: 600;
   cursor: pointer;
   border-radius: 10px;
   font-family: sans-serif;
+}
+
+.show {
+  visibility: visible;
+}
+
+.chat-btn {
+  outline: none;
+  background: indigo;
+  border: 3;
+  color: white;
+  padding-top: 0.25rem;
+  margin-right: 0.25rem;
+  cursor: pointer;
+  border-radius: 10%;
+  opacity: 1;
+  transition: opacity 0.5s;
+  box-shadow: 0 5px 5px rgba(0, 0, 0, 0.4);
+}
+
+.chat-btn-fade {
+  opacity: 0.3;
 }

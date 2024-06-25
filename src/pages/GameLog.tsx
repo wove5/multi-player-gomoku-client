@@ -39,7 +39,9 @@ export default function GameLog() {
       setLoadingResultDetermined(true);
       navigate(location.pathname, {
         replace: true,
-        state: { playersUpdated: result.players },
+        // following results in GameProvider reloading page. Also, state.playersUpdated is not needed.
+        // state: { playersUpdated: result.players },
+        state: { players: result.players },
       });
     } catch (err: any) {
       setGame(undefined);
@@ -52,7 +54,7 @@ export default function GameLog() {
         logout();
       }
     }
-  }, [gameId, navigate, location.pathname, logout]);
+  }, [gameId, location.pathname, logout, navigate]);
 
   useEffect(() => {
     fetchGameBoard();

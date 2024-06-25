@@ -1,5 +1,4 @@
 import style from './Game.module.css';
-// import Chat from '../components/Chat';
 import {
   Chat,
   Message,
@@ -40,6 +39,7 @@ import { GameStatus } from '../types/GameStatus';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useMediaQuery } from '../hooks';
+import { CustomWebSocket } from '../classes';
 
 const getWebSocketURL = () => {
   // if (!API_HOST) return `ws://localhost:8080`;
@@ -58,7 +58,8 @@ export default function Game() {
   const state = location.state;
 
   const { user, logout } = useContext(UserContext);
-  const { previousPath, restFromGame, players } = useContext(GameContext);
+  const { previousPath, players, setWs, headerHeight } =
+    useContext(GameContext);
 
   // const me: PlayerDetail | undefined = useMemo(
   //   () =>
@@ -76,6 +77,7 @@ export default function Game() {
   );
 
   const { gameId = '' } = useParams();
+  console.log(`inside Game, running Game fnc; gameId param = ${gameId}`);
 
   const [game, setGame] = useState<GameInfo | undefined>(
     state === null || state === undefined || state.game === undefined
@@ -91,7 +93,7 @@ export default function Game() {
   const gameWrapperWidth =
     cols * 3 + (cols - 1) * 0.5 + (1 + 1) + (1.25 + 1.25);
   const chatWrapperWidth = 2 * (15 + 2 * (1.25 + 0.625));
-  const thresholdWidth = gameWrapperWidth + 15 + 2 * (1.25 + 0.625) + 6;
+  const thresholdWidth = 6.5 + gameWrapperWidth + 15 + 2 * (1.25 + 0.625) + 6;
   const hideLeftRightBtns = useMediaQuery(`(max-width: ${thresholdWidth}rem)`);
   const maxThresholdWidthGameCentred = gameWrapperWidth + chatWrapperWidth + 8;
   const maxChatWrapperWidth = chatWrapperWidth + 3;
@@ -109,7 +111,8 @@ export default function Game() {
   // create a websocket client connection
   const ws = useMemo(
     () =>
-      new WebSocket(`${getWebSocketURL()}?gameId=${gameId}`, [
+      // new WebSocket(`${getWebSocketURL()}?gameId=${gameId}`, [
+      new CustomWebSocket(`${getWebSocketURL()}?gameId=${gameId}`, [
         'chat',
         `${user?.token}`,
       ]),
@@ -141,7 +144,6 @@ export default function Game() {
   const [updating, setUpdating] = useState(false);
 
   const fetchGameBoard = useCallback(async () => {
-    console.log(`gameLoaded = ${gameLoadedRef.current}`);
     console.log(`trying an API call`);
     try {
       const incompleteGames = await get<IncompleteGameData[]>(
@@ -172,7 +174,6 @@ export default function Game() {
         state: { playersUpdated: result.players, gameId },
       });
       console.log(`game successfully retrieved from API`);
-      gameLoadedRef.current = true;
     } catch (err: any) {
       setGame(undefined);
       setLoading(false);
@@ -195,7 +196,6 @@ export default function Game() {
       player: PLAYER
     ) => {
       if (game) {
-        changingPageRef.current = false;
         const newPositions = game.positions.map((p) => {
           return p._id === id
             ? {
@@ -249,23 +249,36 @@ export default function Game() {
   //     location.pathname,
   //     state.players,
   //     state.game,
-  //     previousPath,
-  //     updateMessages,
+  //     restFromGame,
+  //     gameId,
+  //     updateGameFromOtherPlayer,
+  //     state.playersUpdated,
+  //     game,
   //     otherPlayer,
+  //     updateMessages,
+  //     setWs,
   //   ],
-  //   'ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, previousPath, updateMessages, otherPlayer'
+  //   'ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, restFromGame, gameId, updateGameFromOtherPlayer, state.playersUpdated, game, otherPlayer, updateMessages, setWs'
   // );
 
-  // simple but useful flag variable to ctrl. execution of cleanup
-  let changingPageRef = useRef(false);
-  let gameLoadedRef = useRef(false);
+  let lastPingTime: React.MutableRefObject<number> = useRef(Date.now());
+
+  //TODO: keep an ongoing eye out for TypeError "Cannot read properties of undefined (reading 'find')"... error occurred once on mobile
+  //TODO: during testing but was not able to be replicated or narrowed down to the particular array.find() method in this file.
+  //TODO: In an attempt to prevent error reappearing, conditional chaining has been added to the 3 suspected instances of the find method as in:
+  //TODO: (state?.playersUpdated || state?.players)?.find(...
+
   useEffect(() => {
-    console.log(`running useEffect fnc`);
+    console.log(`Inside Game useEffect fnc`);
+    console.log(`Game component setup: state.players = ${state?.players}`);
+    console.log(
+      `Game component setup: state.playersUpdated = ${state?.playersUpdated}`
+    );
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
     if (state?.game !== undefined) {
       // this should only be so on the very first rendering/loading of game page
-      gameLoadedRef.current = true;
+
       navigate(location.pathname, {
         replace: true,
         // need to specify the following, even if it was already present & correct because replace:true overwrites state
@@ -273,31 +286,100 @@ export default function Game() {
         // however, game is deliberately excluded, so that the designed logic will work meaning that
         // subsequent page refreshes or direct-nav's will pull game data from server API & DB via alt. branch.
       });
-      changingPageRef.current = true;
-    } else if (!gameLoadedRef.current) {
+    } else if (!game) {
       fetchGameBoard();
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
     }
-    console.log(
-      `in useEffect event changingPageRef.current = ${changingPageRef.current}`
-    );
+    setWs(ws);
     let msg = '';
 
     if (!user) return;
-    ws.onmessage = (event) => {
+
+    if (ws.readyState === CustomWebSocket.OPEN) {
+      console.log(
+        `In Game useEffect fnc setup: ws.readyState = ${ws.readyState}`
+      );
+      ws.send(
+        `user with user id: ${user._id} going through useEffect setup - client side.`
+      );
+    }
+
+    // secondary timer for checking ws expiration, as ws.pingTimeout disappears when websocket is closed
+    const checkInterval = setInterval(() => {
+      console.log('running checkInterval to check last ping time');
+      if (
+        Date.now() - lastPingTime.current >
+        11000
+        // && ws.readyState !== CustomWebSocket.OPEN // tbc, but should not be necessary
+      ) {
+        console.log('reloading page');
+        window.location.reload();
+        return;
+      }
+    }, 10000);
+
+    function heartbeat(this: CustomWebSocket) {
+      // primary timer for closing ws connection on non-detection of server pings
+      clearTimeout(this.pingTimeout);
+      this.pingTimeout = setTimeout(() => {
+        console.log('pingTimeout expired - Game component closing ws');
+        this.close();
+      }, 10000 + 1000);
+      lastPingTime.current = Date.now();
+    }
+
+    // ws.pingTimeout = setTimeout(() => {
+    //   console.log('pingTimeout expired -  Game component closing ws');
+    //   ws.close();
+    // }, 10000 + 1000);
+
+    // ws.onopen = function (this: CustomWebSocket) {
+    //   clearTimeout(this.pingTimeout);
+    //   this.pingTimeout = setTimeout(() => {
+    //     console.log('pingTimeout expired -  Game component closing ws');
+    //     this.close();
+    //   }, 10000 + 1000);
+    // };
+    ws.onopen = heartbeat;
+    ws.onclose = function clear(this: CustomWebSocket) {
+      console.log('clearing Timeout');
+      clearTimeout(this.pingTimeout);
+    };
+    ws.onmessage = function handleMessage(this: CustomWebSocket, event) {
       console.log(`incoming msg ~~~`);
       try {
-        const data = JSON.parse(event.data);
+        console.log(event.data);
+        const data = JSON.parse(event.data.toString());
+        console.log(data);
         if (
+          typeof data === 'object' &&
+          // data.updatedBy !== user._id &&
+          'action' in data &&
+          'userId' in data &&
+          data.userId === user._id &&
+          data.action === 'ping'
+        ) {
+          console.log(`reacting to incoming ping`);
+          // update latest ping time
+          lastPingTime.current = Date.now();
+          clearTimeout(this.pingTimeout);
+          // reset timeout
+          this.pingTimeout = setTimeout(() => {
+            console.log(
+              'ping timeout occurred; Game component closing websocket'
+            );
+            this.send('client closing websocket');
+            this.close();
+          }, 10000 + 1000);
+        } else if (
           typeof data === 'object' &&
           data.updatedBy !== user._id &&
           'action' in data
         ) {
           console.log(`data.action = ${data.action}`);
           if (data.action === ACTION.JOIN) {
-            changingPageRef.current = false;
             navigate(location.pathname, {
               replace: true,
               state: {
@@ -323,7 +405,6 @@ export default function Game() {
             const updatedPlayers = data.players.filter(
               (p: PlayerDetail) => p.userId !== data.updatedBy
             );
-            changingPageRef.current = false;
             navigate(location.pathname, {
               replace: true,
               state: {
@@ -338,7 +419,6 @@ export default function Game() {
             )?.userName;
             notify(`${msg} taking rest`);
           } else if (data.action === ACTION.MOVE) {
-            changingPageRef.current = false;
             const name = data.players.find(
               (p: PlayerDetail) => p.userId !== user._id
             ).userName;
@@ -356,10 +436,6 @@ export default function Game() {
             );
             notify(`${name}, made move`);
           }
-
-          console.log(
-            `in ws.onmessage event changingPageRef.current = ${changingPageRef.current}`
-          );
         } else if (
           typeof data === 'object' &&
           'userId' in data &&
@@ -377,8 +453,8 @@ export default function Game() {
       } catch (error) {
         if (game && game.isMulti) {
           console.log(
-            (state.playersUpdated || state.players).find(
-              (p: PlayerDetail) => p.userId !== user?._id
+            (state?.playersUpdated || state?.players)?.find(
+              (p: PlayerDetail) => p.userId !== user._id
             ).userName +
               ': ' +
               event.data
@@ -389,30 +465,11 @@ export default function Game() {
       }
     };
     return () => {
-      const userItem = localStorage.getItem('user');
+      console.log(`Game component cleanup: state.players = ${state?.players}`);
       console.log(
-        `in useEffect cleanup; changingPageRef.current = ${changingPageRef.current}, ws.readyState = ${ws.readyState}`
+        `Game component cleanup: state.playersUpdated = ${state?.playersUpdated}`
       );
-      if (ws.readyState === WebSocket.OPEN) {
-        if (changingPageRef.current) {
-          if (userItem) {
-            // the token needs to be in place to successfully make rest from game api req.
-            restFromGame(gameId).then(() => {
-              console.log(`Clean up fnc: ws.readyState = ${ws.readyState}`);
-              console.log(`closing websocket connection`);
-              ws.close();
-            });
-          } else {
-            // the Logout btn in Header will have called restFromGame(), so token will be gone.
-            console.log(`closing websocket connection`);
-            ws.close();
-          }
-        } else {
-          changingPageRef.current = true;
-          console.log(`Are we here`);
-          console.log(`changingPageRef.current = ${changingPageRef.current}`);
-        }
-      }
+      clearInterval(checkInterval);
     };
   }, [
     ws,
@@ -420,15 +477,16 @@ export default function Game() {
     fetchGameBoard,
     navigate,
     location.pathname,
-    state.players,
-    state.game,
-    restFromGame,
+    // use optional chaining to handle situations when state is null
+    state?.players,
+    state?.playersUpdated,
+    state?.game,
     gameId,
     updateGameFromOtherPlayer,
-    state.playersUpdated,
     game,
     otherPlayer,
     updateMessages,
+    setWs,
   ]);
 
   useEffect(() => {
@@ -466,7 +524,6 @@ export default function Game() {
 
   const updateGame = async (id: string, posId: number) => {
     console.log(`entered updateGame`);
-    console.log(`changingPageRef.current = ${changingPageRef.current}`);
     if (
       // if a selection had already been made but the db update had failed
       // (this is operating on the client side end only)
@@ -494,7 +551,6 @@ export default function Game() {
       });
       const newSelectedPositions = [...originalSelectedPositions, posId];
 
-      changingPageRef.current = false;
       setGame({
         ...game,
         positions: newPositions,
@@ -502,7 +558,7 @@ export default function Game() {
       });
     }
 
-    const findMe = (state.playersUpdated || state.players).find(
+    const findMe = (state?.playersUpdated || state?.players)?.find(
       (p: PlayerDetail) => p.userId === user?._id
     );
 
@@ -527,7 +583,6 @@ export default function Game() {
     });
     const newSelectedPositions = [...game.selectedPositions, posId];
     // set positions & selectedPositions ahead of the api call to make it appear more responsive
-    changingPageRef.current = false;
     setGame({
       ...game,
       positions: newPositions,
@@ -541,7 +596,6 @@ export default function Game() {
           id: id,
         }
       );
-      changingPageRef.current = false;
       setGame({
         ...game,
         status: result.status, // status is the one that needs updating, but
@@ -558,7 +612,6 @@ export default function Game() {
         return p._id === id ? { ...p, status: POSITION_STATUS.YELLOW } : p;
       });
       const newSelectedPositions = [...game.selectedPositions, posId];
-      changingPageRef.current = false;
       setGame({
         ...game,
         positions: newPositions,
@@ -633,133 +686,28 @@ export default function Game() {
   return (
     <>
       <div
-        className={`${style.container} ${
-          hideLeftRightBtns ||
-          (!hideLeftRightBtns && gameBoardAlign === GAME_BOARD_ALIGN.CENTRE)
-            ? ' ' + style['container-direction-column']
-            : ''
-        } ${
-          !hideLeftRightBtns && gameBoardAlign === GAME_BOARD_ALIGN.RIGHT
-            ? ' ' + style['container-reverse-flex-direction']
-            : ''
-        }
-        }`}
+        style={{
+          maxWidth: `${
+            !hideLeftRightBtns && gameBoardAlign !== GAME_BOARD_ALIGN.CENTRE
+              ? gameWrapperWidth + 1 + maxChatWrapperWidth
+              : !hideLeftRightBtns && gameBoardAlign === GAME_BOARD_ALIGN.CENTRE
+              ? maxThresholdWidthGameCentred
+              : maxChatWrapperWidth
+          }rem`,
+        }}
+        className={style.container}
       >
-        <div className={style['game-wrapper']}>
-          <div className={style['game-title-state-wrapper']}>
-            <span
-              className={style['game-title']}
-            >{`${`game-${game.gameNumber}`} (${rows}x${cols})`}</span>
-            <span className={style['game-state-info']}>{dateInfoString}</span>
-            <span className={style['game-state-info']}>{gameStateLabel()}</span>
-          </div>
-          <div className={style['board-wrapper']}>
-            <button
-              className={`${style['pushable-lhs']}${
-                hideLeftRightBtns
-                  ? ' ' + style['hide-side-btns']
-                  : gameBoardAlign === GAME_BOARD_ALIGN.LEFT
-                  ? ' ' + style['hide-left-btn']
-                  : ''
-              }`}
-              onClick={() => {
-                if (gameBoardAlign === GAME_BOARD_ALIGN.RIGHT)
-                  setGameBoardAlign(GAME_BOARD_ALIGN.CENTRE);
-                else setGameBoardAlign(GAME_BOARD_ALIGN.LEFT);
-              }}
-            >
-              <span className={style['front-lhs']}>&laquo;</span>
-            </button>
-            <div
-              className={`${style.board}${
-                hideLeftRightBtns && shrinkBoard
-                  ? ' ' + style['shrink-board']
-                  : ''
-              }`}
-              style={{
-                gridTemplateColumns: `repeat(${cols}, ${
-                  hideLeftRightBtns && shrinkBoard
-                    ? 0.75
-                    : cols > 7 && shrinkBoardPositions
-                    ? 2
-                    : 3
-                }rem)`,
-              }}
-              data-bg-text={'TOUCH or CLICK TO CONTINUE'}
-              onClick={
-                hideLeftRightBtns && shrinkBoard
-                  ? () => expandBoard()
-                  : () => null
-              }
-            >
-              {game.positions.map((p, idx) => (
-                <Position
-                  cols={cols}
-                  shrinkBoardPositions={shrinkBoardPositions}
-                  hideLeftRightBtns={hideLeftRightBtns}
-                  shrinkBoard={shrinkBoard}
-                  key={p._id}
-                  id={p._id}
-                  posId={idx}
-                  positionStatus={p.status}
-                  gameStatus={game.status}
-                  addSelectedPosition={updateGame}
-                  expandBoard={expandBoard}
-                  myTurn={
-                    (state?.playersUpdated || state?.players)
-                      .find((p: PlayerDetail) => p.userId === user?._id)
-                      .color.toString() === player.toString() || !game.isMulti
-                  }
-                  updating={updating}
-                />
-              ))}
-            </div>
-            <button
-              className={`${style['pushable-rhs']}${
-                hideLeftRightBtns
-                  ? ' ' + style['hide-side-btns']
-                  : gameBoardAlign === GAME_BOARD_ALIGN.RIGHT
-                  ? ' ' + style['hide-right-btn']
-                  : ''
-              }`}
-              onClick={() => {
-                if (gameBoardAlign === GAME_BOARD_ALIGN.LEFT)
-                  setGameBoardAlign(GAME_BOARD_ALIGN.CENTRE);
-                else setGameBoardAlign(GAME_BOARD_ALIGN.RIGHT);
-              }}
-            >
-              <span className={style['front-rhs']}>&raquo;</span>
-            </button>
-          </div>
-          {!shrinkBoard && (
-            <button
-              className={`${style.pushable} ${
-                !hideLeftRightBtns ? ' ' + style['pushable-hide'] : ''
-              }`}
-              onClick={() => {
-                setShrinkBoard(!shrinkBoard);
-              }}
-            >
-              <span className={style.front}>&laquo;&nbsp;</span>
-            </button>
-          )}
-          <div
-            className={`${style['control-buttons']}${
-              shrinkBoard && otherPlayer && game.status === GAMESTATUS.ACTIVE
-                ? ' ' + style['ctrl-btns-board-shrunk']
-                : !shrinkBoard &&
-                  hideLeftRightBtns &&
-                  otherPlayer &&
-                  game.status === GAMESTATUS.ACTIVE
-                ? ' ' + style['transform-ctrl-btns']
-                : ''
-            }${`${
-              shrinkBoard && otherPlayer && cols < 7
-                ? ' ' + style['ctrl-btns-board-shrunk-less-than-7x7']
-                : ''
-            }`}
-            }`}
-          >
+        <div
+          style={{ paddingTop: `${(headerHeight ?? 100) / 16 + 0.2}rem` }}
+          className={`${style['game-wrapper']} ${
+            !hideLeftRightBtns && gameBoardAlign === GAME_BOARD_ALIGN.LEFT
+              ? ' ' + style['game-wrapper-left']
+              : !hideLeftRightBtns && gameBoardAlign === GAME_BOARD_ALIGN.RIGHT
+              ? ' ' + style['game-wrapper-right']
+              : ''
+          }`}
+        >
+          <div className={style['control-buttons']}>
             {game.status === GAMESTATUS.ACTIVE && (
               <>
                 {' '}
@@ -768,7 +716,6 @@ export default function Game() {
                   <button
                     className={style.button}
                     onClick={() => {
-                      changingPageRef.current = false;
                       resetGame();
                     }}
                   >
@@ -778,7 +725,6 @@ export default function Game() {
                 <button
                   className={style.button}
                   onClick={() => {
-                    changingPageRef.current = true;
                     navigate('/', { state: {} });
                   }}
                 >
@@ -792,7 +738,6 @@ export default function Game() {
                 console.log(`location.pathname = ${location.pathname}`);
                 if (game.status === GAMESTATUS.ACTIVE) {
                   await leaveGame();
-                  changingPageRef.current = true;
                   navigate('/', { replace: true, state: {} });
                 } else {
                   navigate('/games', {
@@ -805,6 +750,108 @@ export default function Game() {
               Leave
             </button>
           </div>
+          <div className={style['game-title-state-wrapper']}>
+            <span
+              className={style['game-title']}
+            >{`${`game-${game.gameNumber}`} (${rows}x${cols})`}</span>
+            <span className={style['game-state-info']}>{dateInfoString}</span>
+            <span className={style['game-state-info']}>{gameStateLabel()}</span>
+          </div>
+          <div className={style['board-wrapper-outer']}>
+            <div className={style['board-wrapper-inner']}>
+              <button
+                className={`${style['pushable-lhs']}${
+                  hideLeftRightBtns
+                    ? ' ' + style['hide-side-btns']
+                    : gameBoardAlign === GAME_BOARD_ALIGN.LEFT
+                    ? ' ' + style['hide-left-btn']
+                    : ''
+                }`}
+                onClick={() => {
+                  if (gameBoardAlign === GAME_BOARD_ALIGN.RIGHT)
+                    setGameBoardAlign(GAME_BOARD_ALIGN.CENTRE);
+                  else setGameBoardAlign(GAME_BOARD_ALIGN.LEFT);
+                }}
+              >
+                <span className={style['front-lhs']}>&laquo;</span>
+              </button>
+              <div
+                className={`${style.board}${
+                  hideLeftRightBtns && shrinkBoard
+                    ? ' ' + style['shrink-board']
+                    : ''
+                }`}
+                style={{
+                  gridTemplateColumns: `repeat(${cols}, ${
+                    hideLeftRightBtns && shrinkBoard
+                      ? 0.75
+                      : cols > 7 && shrinkBoardPositions
+                      ? 2
+                      : 3
+                  }rem)`,
+                }}
+                data-bg-text={'TOUCH or CLICK TO CONTINUE'}
+                onClick={
+                  hideLeftRightBtns && shrinkBoard
+                    ? () => expandBoard()
+                    : () => null
+                }
+              >
+                {game.positions.map((p, idx) => (
+                  <Position
+                    cols={cols}
+                    shrinkBoardPositions={shrinkBoardPositions}
+                    hideLeftRightBtns={hideLeftRightBtns}
+                    shrinkBoard={shrinkBoard}
+                    key={p._id}
+                    id={p._id}
+                    posId={idx}
+                    positionStatus={p.status}
+                    gameStatus={game.status}
+                    addSelectedPosition={updateGame}
+                    expandBoard={expandBoard}
+                    myTurn={
+                      (state?.playersUpdated || state?.players)
+                        ?.find((p: PlayerDetail) => p.userId === user?._id)
+                        .color.toString() === player.toString() || !game.isMulti
+                    }
+                    updating={updating}
+                  />
+                ))}
+              </div>
+              <button
+                className={`${style['pushable-rhs']}${
+                  hideLeftRightBtns
+                    ? ' ' + style['hide-side-btns']
+                    : gameBoardAlign === GAME_BOARD_ALIGN.RIGHT
+                    ? ' ' + style['hide-right-btn']
+                    : ''
+                }`}
+                onClick={() => {
+                  if (gameBoardAlign === GAME_BOARD_ALIGN.LEFT)
+                    setGameBoardAlign(GAME_BOARD_ALIGN.CENTRE);
+                  else setGameBoardAlign(GAME_BOARD_ALIGN.RIGHT);
+                }}
+              >
+                <span className={style['front-rhs']}>&raquo;</span>
+              </button>
+            </div>
+            {!shrinkBoard && (
+              <button
+                className={`${style.pushable} ${
+                  !hideLeftRightBtns ? ' ' + style['pushable-hide'] : ''
+                }`}
+                onClick={() => {
+                  setShrinkBoard(!shrinkBoard);
+                }}
+              >
+                <div className={style.front}>
+                  <span className={style['front-dbl-arrow']}>&laquo;</span>
+                  <span className={style['front-dbl-arrow']}>&laquo;</span>
+                </div>
+              </button>
+            )}
+          </div>
           {errorMessage && (
             <div className={style['error-message']}>
               {<Message variant="error" message={errorMessage} />}
@@ -815,19 +862,34 @@ export default function Game() {
           )}
         </div>
         <div
-          className={style['chat-wrapper']}
+          className={`${style['chat-wrapper']}
+            ${
+              !hideLeftRightBtns && gameBoardAlign === GAME_BOARD_ALIGN.LEFT
+                ? ' ' + style['chat-wrapper-right']
+                : !hideLeftRightBtns &&
+                  gameBoardAlign === GAME_BOARD_ALIGN.RIGHT
+                ? ' ' + style['chat-wrapper-left']
+                : ''
+            }`}
           style={
             !hideLeftRightBtns && gameBoardAlign !== GAME_BOARD_ALIGN.CENTRE
-              ? { maxWidth: `${maxChatWrapperWidth}rem` }
+              ? {
+                  maxWidth: `${maxChatWrapperWidth}rem`,
+                  width:
+                    cols < 6
+                      ? '60%'
+                      : cols < 7
+                      ? '58%'
+                      : cols < 8
+                      ? '55%'
+                      : cols < 10
+                      ? '50%'
+                      : '45%',
+                }
               : { maxWidth: `${maxThresholdWidthGameCentred}rem` }
           }
         >
-          <Chat
-            ws={ws}
-            messages={messages}
-            updateMessages={updateMessages}
-            cols={cols}
-          />
+          <Chat ws={ws} messages={messages} updateMessages={updateMessages} />
         </div>
       </div>
       <ToastContainer

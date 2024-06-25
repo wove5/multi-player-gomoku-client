@@ -1,7 +1,7 @@
 import { Button, Message, SessionExpired } from '../components';
 import style from './Home.module.css';
 import Select, { ActionMeta, SingleValue, StylesConfig } from 'react-select';
-import { UserContext } from '../context';
+import { UserContext, GameContext } from '../context';
 import { useNavigate } from 'react-router';
 import { useContext, useEffect, useState } from 'react';
 import boards from '../data/boards.json';
@@ -15,6 +15,7 @@ const gameModes = [GAME_MODE.SINGLE, GAME_MODE.MULTI];
 export default function Home() {
   const navigate = useNavigate();
   const { user, logout } = useContext(UserContext);
+  const { headerHeight } = useContext(GameContext);
 
   interface GameOption {
     value: string;
@@ -243,7 +244,10 @@ export default function Home() {
   ) : retrievingGame ? (
     <span className={style['loading-game-state']}>Retrieving game</span>
   ) : (
-    <div className={style.container}>
+    <div
+      className={style.container}
+      style={{ top: `${(headerHeight ?? 90) / 16}rem` }}
+    >
       <div className={style['inner-container']}>
         <Button
           type="submit"

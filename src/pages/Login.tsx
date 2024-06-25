@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect, useRef, ChangeEvent } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Button, Input, Message } from '../components';
-import { UserContext } from '../context';
+import { UserContext, GameContext } from '../context';
 
 import style from './Login.module.css';
 import { CreateGameInfo, GameInfo } from '../types';
@@ -19,6 +19,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [loadingGame, setLoadingGame] = useState(false);
+  const { headerHeight } = useContext(GameContext);
 
   useEffect(() => {
     if (usernameInput.current) {
@@ -91,6 +92,7 @@ export default function Login() {
   ) : (
     <form
       className={style.container}
+      style={{ top: `${(headerHeight ?? 80) / 16}rem` }}
       onSubmit={(e) => {
         e.preventDefault();
         handleLogin();

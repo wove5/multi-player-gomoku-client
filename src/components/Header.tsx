@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { UserContext, GameContext } from '../context';
 
@@ -10,7 +10,7 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, username, logout } = useContext(UserContext);
-  const { restFromGame } = useContext(GameContext);
+  const { restFromGame, setHeaderHeight } = useContext(GameContext);
 
   // location.state supplied by either Home page component or Game component page as needed
   const state = location.state;
@@ -78,8 +78,15 @@ export default function Header() {
     }
   };
 
+  useEffect(() => {
+    setHeaderHeight(headerRef.current?.offsetHeight);
+  });
+
+  // const headerRef = useRef<JSX.IntrinsicElements['header'] | null>(null);
+  const headerRef = useRef<HTMLElement | null>(null);
+
   return (
-    <header className={style.header}>
+    <header ref={headerRef} className={style.header}>
       <div className={style.container}>
         <Link className={style.link} to="/">
           Gomoku

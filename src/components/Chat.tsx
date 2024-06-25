@@ -1,7 +1,10 @@
 import style from './Chat.module.css';
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import Icon from '@mdi/react';
+import { mdiMessageReplyText } from '@mdi/js';
 import { PlayerDetail } from '../types';
 import { GameContext, UserContext } from '../context';
+import { CustomWebSocket } from '../classes';
 
 // import { useWhatChanged } from '@simbathesailor/use-what-changed';
 
@@ -12,17 +15,18 @@ interface Message {
 }
 
 interface ChatProps {
-  ws: WebSocket;
+  // ws: WebSocket;
+  ws: CustomWebSocket;
   messages: Message[];
   updateMessages: (msg: Message) => void;
-  cols: number;
 }
 
 export default function Chat(props: ChatProps) {
-  const { ws, messages, updateMessages, cols } = props;
+  const { ws, messages, updateMessages } = props;
 
   const scrollBottomRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const { user } = useContext(UserContext);
   const { players } = useContext(GameContext);
 
@@ -36,9 +40,11 @@ export default function Chat(props: ChatProps) {
 
   const [myMessage, setMyMessage] = useState<string>('');
 
+  const [chatVisible, setChatVisible] = useState(true);
+
   const onSend = () => {
-    if (me && myMessage) {
-      ws.send(
+    if (me && myMessage && ws) {
+      ws?.send(
         JSON.stringify({
           message: myMessage,
           userId: me.userId,
@@ -50,18 +56,17 @@ export default function Chat(props: ChatProps) {
         userId: me.userId,
         userName: me.userName,
       });
+      setMyMessage('');
     }
-    setMyMessage('');
     if (inputRef.current?.parentElement) {
       inputRef.current.parentElement.dataset.replicatedValue = '';
       inputRef.current.parentElement.style.height = 'auto';
     }
   };
 
-  // useWhatChanged(
-  //   [ws, user, location.pathname, state.players, state.game],
-  //   'ws, user, location.pathname, state.players, state.game'
-  // );
+  const toggleChatVisible = () => {
+    setChatVisible(!chatVisible);
+  };
 
   useEffect(() => {
     if (scrollBottomRef.current) {
@@ -97,32 +102,51 @@ export default function Chat(props: ChatProps) {
         <div ref={scrollBottomRef} />
       </div>
 
-      <div
-        className={`${style.bottom}${
-          cols === 10 ? ' ' + style['bottom-10x10'] : ''
-        }`}
-      >
+      <div className={style.bottom}>
         <div className={`${style.form}`}>
-          <div className={style['grow-wrap']}>
+          <button
+            className={`${style['chat-btn']} ${
+              !chatVisible ? ' ' + style['chat-btn-fade'] : ''
+            }`}
+            onClick={toggleChatVisible}
+          >
+            <Icon path={mdiMessageReplyText} size={2} />
+          </button>
+          <div
+            className={`${style['grow-wrap']} ${
+              chatVisible ? ' ' + style.show : ''
+            }`}
+          >
             <textarea
               className={style.textarea}
               id={'textarea'}
               ref={inputRef}
               // type="myMessage"
               rows={1}
-              // cols={16}
               value={myMessage}
               onChange={(e) => {
                 setMyMessage(e.target.value);
               }}
-              onKeyUp={(e) => e.key === 'Enter' && onSend()}
+              onKeyUp={(e) => {
+                if (e.key === 'Enter') {
+                  // onSend();
+                  // buttonRef.current?.focus();
+                  buttonRef.current?.click();
+                  e.currentTarget.blur();
+                  // buttonRef.current?.click();
+                }
+              }}
               onInput={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                 auto_height(e)
               }
               placeholder="Message"
             ></textarea>
           </div>
-          <button className={style.button} onClick={onSend}>
+          <button
+            className={`${style.button} ${chatVisible ? ' ' + style.show : ''}`}
+            ref={buttonRef}
+            onClick={onSend}
+          >
             Send
           </button>
         </div>

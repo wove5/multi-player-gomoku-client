@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button, Input, Message } from '../components';
-import { UserContext } from '../context';
+import { UserContext, GameContext } from '../context';
 
 import style from './SignUp.module.css';
 import { CreateGameInfo, GameInfo } from '../types';
@@ -17,6 +17,7 @@ export default function SignUp() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const { headerHeight } = useContext(GameContext);
 
   const newGame = async (b: number[], isMulti: boolean) => {
     // const todaysDate = new Date().toLocaleString().split(',')[0];
@@ -65,6 +66,7 @@ export default function SignUp() {
   return (
     <form
       className={style.container}
+      style={{ top: `${(headerHeight ?? 80) / 16}rem` }}
       onSubmit={(e) => {
         e.preventDefault();
         handleSignUp();

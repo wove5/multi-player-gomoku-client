@@ -10,7 +10,7 @@ import { PageNotFound, SessionExpired } from '../components';
 export default function Games() {
   const { user, logout } = useContext(UserContext);
   const navigate = useNavigate();
-  const { previousPath } = useContext(GameContext);
+  const { previousPath, headerHeight } = useContext(GameContext);
 
   const [completedGames, setCompletedGames] = useState<CompletedGameData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,5 +109,12 @@ export default function Games() {
     );
   });
 
-  return <div className={style.container}>{theCompletedGames}</div>;
+  return (
+    <div
+      className={style.container}
+      style={{ paddingTop: `${(headerHeight ?? 85) / 16}rem` }}
+    >
+      {theCompletedGames}
+    </div>
+  );
 }

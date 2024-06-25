@@ -1,3 +1,4 @@
+import { CustomWebSocket } from '../classes';
 import { PlayerDetail } from '../types';
 
 export interface GameContextInterface {
@@ -7,4 +8,7 @@ export interface GameContextInterface {
   players: PlayerDetail[] | undefined;
   me: PlayerDetail;
   otherPlayer?: PlayerDetail;
+  setWs: (arg: CustomWebSocket) => void;
+  headerHeight: number | undefined;
+  setHeaderHeight: (arg: number | undefined) => void;
 }
