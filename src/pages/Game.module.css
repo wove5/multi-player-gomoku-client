@@ -310,3 +310,13 @@
   align-self: flex-start;
   margin-left: 2rem;
 }
+
+.game-won {
+  animation: blinker 1s linear infinite;
+}
+
+@keyframes blinker {
+  50% {
+    opacity: 0;
+  }
+}

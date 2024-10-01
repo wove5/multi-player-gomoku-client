@@ -40,6 +40,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useMediaQuery } from '../hooks';
 import { CustomWebSocket } from '../classes';
+import Confetti from 'react-confetti-boom';
 
 const getWebSocketURL = () => {
   // if (!API_HOST) return `ws://localhost:8080`;
@@ -755,8 +756,15 @@ export default function Game() {
               className={style['game-title']}
             >{`${`game-${game.gameNumber}`} (${rows}x${cols})`}</span>
             <span className={style['game-state-info']}>{dateInfoString}</span>
-            <span className={style['game-state-info']}>{gameStateLabel()}</span>
+            <span
+              className={`${style['game-state-info']}${
+                game.status === GAMESTATUS.WON ? ' ' + style['game-won'] : ''
+              }`}
+            >
+              {gameStateLabel()}
+            </span>
           </div>
+          {/* {game.status === GAMESTATUS.WON && <ConfettiExplosion />} */}
           <div className={style['board-wrapper-outer']}>
             <div className={style['board-wrapper-inner']}>
               <button
@@ -899,6 +907,17 @@ export default function Game() {
         className={style['toast-container']}
         toastClassName={style['toast-wrapper']}
       />
+      {game.status === GAMESTATUS.WON && (
+        <Confetti
+          mode="boom"
+          x={0.5}
+          y={0.4}
+          particleCount={300}
+          spreadDeg={100}
+          effectCount={Infinity}
+          effectInterval={4000}
+        />
+      )}
     </>
   );
 }
