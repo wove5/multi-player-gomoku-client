@@ -48,7 +48,9 @@ export default function GameProvider({ children }: GameProviderProps) {
   let previousPath = getCurrentPath() === '' ? currentPath : getCurrentPath();
 
   const [ws, setWs] = useState<CustomWebSocket | undefined>(undefined);
-  const [windowIsActive, setWindowIsActive] = useState<boolean | undefined>();
+  const [windowIsActive, setWindowIsActive] = useState<boolean | undefined>(
+    true
+  );
 
   const [headerHeight, setHeaderHeight] = useState<number | undefined>();
 
@@ -68,18 +70,19 @@ export default function GameProvider({ children }: GameProviderProps) {
 
   useEffect(() => {
     console.log('inside GameProvider useEffect');
+    console.log(`windowIsActive = ${windowIsActive}`);
     localStorage.setItem('currentPath', JSON.stringify(currentPath));
-    console.log(`currentPath = ${currentPath}`);
-    console.log(`previousPath = ${previousPath}`);
-    console.log(
-      `in GameProvider useEffect setup: ws.readystate = ${ws?.readyState}`
-    );
-    console.log(
-      `GameProvider component setup: state.players = ${state?.players}`
-    );
-    console.log(
-      `GameProvider component setup: state.playersUpdated = ${state?.playersUpdated}`
-    );
+    // console.log(`currentPath = ${currentPath}`);
+    // console.log(`previousPath = ${previousPath}`);
+    // console.log(
+    //   `in GameProvider useEffect setup: ws.readystate = ${ws?.readyState}`
+    // );
+    // console.log(
+    //   `GameProvider component setup: state.players = ${state?.players}`
+    // );
+    // console.log(
+    //   `GameProvider component setup: state.playersUpdated = ${state?.playersUpdated}`
+    // );
 
     function handleActivity(forcedFlag: boolean | undefined) {
       console.log('inside handleActivity');
@@ -94,7 +97,7 @@ export default function GameProvider({ children }: GameProviderProps) {
         console.log(`setting windowIsActive to: ${!document.hidden}`);
         document.hidden ? setWindowIsActive(false) : setWindowIsActive(true);
       }
-      // console.log(`windowIsActive = ${windowIsActive}`);
+      console.log(`windowIsActive = ${windowIsActive}`);
     }
 
     const handleActivityFalse = () => handleActivity(false);
@@ -102,7 +105,11 @@ export default function GameProvider({ children }: GameProviderProps) {
 
     setGameId(state?.gameId);
     // This solution works because state is cleared whether directly or programmatically navigating away from Game page.
-    if (state?.players === undefined && state?.playersUpdated === undefined) {
+    if (
+      state?.players === undefined &&
+      state?.playersUpdated === undefined &&
+      windowIsActive
+    ) {
       // this branch of the condition is akin to a cleanup but in a retrospective manner
       const userItem = localStorage.getItem('user');
 
@@ -124,9 +131,10 @@ export default function GameProvider({ children }: GameProviderProps) {
       document.removeEventListener('blur', handleActivityFalse);
       window.removeEventListener('focus', handleActivityTrue);
       document.removeEventListener('focus', handleActivityTrue);
+      // setWindowIsActive(false);
     } else {
       // in the case of mobile phone going to sleep and losing connection, reload the page on focus of browser tab
-      if (state.playersUpdated && ws?.readyState && ws.readyState > 1) {
+      if (state?.playersUpdated && ws?.readyState && ws.readyState > 1) {
         console.log(`reloading page`);
         window.location.reload();
       }
@@ -136,6 +144,7 @@ export default function GameProvider({ children }: GameProviderProps) {
       window.addEventListener('blur', handleActivityFalse);
       window.addEventListener('focus', handleActivityTrue);
       document.addEventListener('focus', handleActivityTrue);
+      // setWindowIsActive(true);
     }
 
     return () => {
@@ -176,6 +185,7 @@ export default function GameProvider({ children }: GameProviderProps) {
         setWs,
         headerHeight,
         setHeaderHeight,
+        windowIsActive,
       }}
     >
       {children}

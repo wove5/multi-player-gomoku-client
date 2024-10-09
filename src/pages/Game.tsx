@@ -40,7 +40,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useMediaQuery } from '../hooks';
 import { CustomWebSocket } from '../classes';
-import Confetti from 'react-confetti-boom';
+import Fireworks from 'react-canvas-confetti/dist/presets/fireworks';
 
 const getWebSocketURL = () => {
   // if (!API_HOST) return `ws://localhost:8080`;
@@ -59,7 +59,7 @@ export default function Game() {
   const state = location.state;
 
   const { user, logout } = useContext(UserContext);
-  const { previousPath, players, setWs, headerHeight } =
+  const { previousPath, players, setWs, headerHeight, windowIsActive } =
     useContext(GameContext);
 
   // const me: PlayerDetail | undefined = useMemo(
@@ -270,11 +270,11 @@ export default function Game() {
   //TODO: (state?.playersUpdated || state?.players)?.find(...
 
   useEffect(() => {
-    console.log(`Inside Game useEffect fnc`);
-    console.log(`Game component setup: state.players = ${state?.players}`);
-    console.log(
-      `Game component setup: state.playersUpdated = ${state?.playersUpdated}`
-    );
+    // console.log(`Inside Game useEffect fnc`);
+    // console.log(`Game component setup: state.players = ${state?.players}`);
+    // console.log(
+    //   `Game component setup: state.playersUpdated = ${state?.playersUpdated}`
+    // );
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
     if (state?.game !== undefined) {
@@ -309,7 +309,7 @@ export default function Game() {
 
     // secondary timer for checking ws expiration, as ws.pingTimeout disappears when websocket is closed
     const checkInterval = setInterval(() => {
-      console.log('running checkInterval to check last ping time');
+      // console.log('running checkInterval to check last ping time');
       if (
         Date.now() - lastPingTime.current >
         11000
@@ -349,11 +349,11 @@ export default function Game() {
       clearTimeout(this.pingTimeout);
     };
     ws.onmessage = function handleMessage(this: CustomWebSocket, event) {
-      console.log(`incoming msg ~~~`);
+      // console.log(`incoming msg ~~~`);
       try {
-        console.log(event.data);
+        // console.log(event.data);
         const data = JSON.parse(event.data.toString());
-        console.log(data);
+        // console.log(data);
         if (
           typeof data === 'object' &&
           // data.updatedBy !== user._id &&
@@ -362,7 +362,7 @@ export default function Game() {
           data.userId === user._id &&
           data.action === 'ping'
         ) {
-          console.log(`reacting to incoming ping`);
+          // console.log(`reacting to incoming ping`);
           // update latest ping time
           lastPingTime.current = Date.now();
           clearTimeout(this.pingTimeout);
@@ -466,10 +466,10 @@ export default function Game() {
       }
     };
     return () => {
-      console.log(`Game component cleanup: state.players = ${state?.players}`);
-      console.log(
-        `Game component cleanup: state.playersUpdated = ${state?.playersUpdated}`
-      );
+      // console.log(`Game component cleanup: state.players = ${state?.players}`);
+      // console.log(
+      //   `Game component cleanup: state.playersUpdated = ${state?.playersUpdated}`
+      // );
       clearInterval(checkInterval);
     };
   }, [
@@ -907,15 +907,20 @@ export default function Game() {
         className={style['toast-container']}
         toastClassName={style['toast-wrapper']}
       />
-      {game.status === GAMESTATUS.WON && (
-        <Confetti
-          mode="boom"
-          x={0.5}
-          y={0.4}
-          particleCount={300}
-          spreadDeg={100}
-          effectCount={Infinity}
-          effectInterval={4000}
+      {game.status === GAMESTATUS.WON && windowIsActive && (
+        <Fireworks
+          decorateOptions={(defaultOptions) => {
+            return {
+              ...defaultOptions,
+              particleCount: 100,
+              shapes: ['square', 'circle', 'star'],
+              startVelocity: 47,
+              scalar: 1.25,
+              decay: 0.88,
+              ticks: 230,
+            };
+          }}
+          autorun={{ speed: 0.7 }}
         />
       )}
     </>

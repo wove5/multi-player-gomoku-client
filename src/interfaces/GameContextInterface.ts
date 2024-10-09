@@ -11,4 +11,5 @@ export interface GameContextInterface {
   setWs: (arg: CustomWebSocket) => void;
   headerHeight: number | undefined;
   setHeaderHeight: (arg: number | undefined) => void;
+  windowIsActive: boolean | undefined;
 }
