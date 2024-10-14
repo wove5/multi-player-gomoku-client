@@ -69,24 +69,9 @@ export default function GameProvider({ children }: GameProviderProps) {
   };
 
   useEffect(() => {
-    console.log('inside GameProvider useEffect');
-    console.log(`windowIsActive = ${windowIsActive}`);
     localStorage.setItem('currentPath', JSON.stringify(currentPath));
-    // console.log(`currentPath = ${currentPath}`);
-    // console.log(`previousPath = ${previousPath}`);
-    // console.log(
-    //   `in GameProvider useEffect setup: ws.readystate = ${ws?.readyState}`
-    // );
-    // console.log(
-    //   `GameProvider component setup: state.players = ${state?.players}`
-    // );
-    // console.log(
-    //   `GameProvider component setup: state.playersUpdated = ${state?.playersUpdated}`
-    // );
 
     function handleActivity(forcedFlag: boolean | undefined) {
-      console.log('inside handleActivity');
-      // console.log(`windowIsActive = ${windowIsActive}`);
       if (typeof forcedFlag === 'boolean') {
         console.log(`${forcedFlag ? 'focus event' : 'blur event'}`);
         console.log(`setting windowIsActive to: ${forcedFlag}`);
@@ -114,10 +99,8 @@ export default function GameProvider({ children }: GameProviderProps) {
       const userItem = localStorage.getItem('user');
 
       // state?gameId update is delayed and not captured in time to trigger the restFromGame branch - therefore using gameId state
-      // if (userItem && state?.gameId) {
       if (userItem && gameId) {
         // the token needs to be in place to successfully make rest from game api req.
-        // restFromGame(state?.gameId).then(() => {
         restFromGame(gameId).then(() => {
           ws?.close();
         });
@@ -131,9 +114,9 @@ export default function GameProvider({ children }: GameProviderProps) {
       document.removeEventListener('blur', handleActivityFalse);
       window.removeEventListener('focus', handleActivityTrue);
       document.removeEventListener('focus', handleActivityTrue);
-      // setWindowIsActive(false);
     } else {
-      // in the case of mobile phone going to sleep and losing connection, reload the page on focus of browser tab
+      // in the case of mobile phone going to sleep and losing connection,
+      // i.e. client drops connection; reload the page on focus of browser tab
       if (state?.playersUpdated && ws?.readyState && ws.readyState > 1) {
         console.log(`reloading page`);
         window.location.reload();
@@ -144,7 +127,6 @@ export default function GameProvider({ children }: GameProviderProps) {
       window.addEventListener('blur', handleActivityFalse);
       window.addEventListener('focus', handleActivityTrue);
       document.addEventListener('focus', handleActivityTrue);
-      // setWindowIsActive(true);
     }
 
     return () => {

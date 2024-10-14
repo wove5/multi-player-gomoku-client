@@ -307,17 +307,29 @@ export default function Game() {
       );
     }
 
-    // secondary timer for checking ws expiration, as ws.pingTimeout disappears when websocket is closed
+    // secondary timer for checking ws expiration, as ws.pingTimeout disappears when
+    // websocket is closed.
     const checkInterval = setInterval(() => {
       // console.log('running checkInterval to check last ping time');
+      // the following will apply when server drops connection; the client has no way
+      // of knowing, so force a page reload which will recreate the connection and
+      // destroy the old one if it does still exists (it likely doesn't exist)
       if (
         Date.now() - lastPingTime.current >
         11000
         // && ws.readyState !== CustomWebSocket.OPEN // tbc, but should not be necessary
       ) {
-        console.log('reloading page');
-        window.location.reload();
-        return;
+        if (game?.status === GAMESTATUS.ACTIVE) {
+          console.log('reloading page');
+          window.location.reload();
+          return;
+        } else {
+          console.log('navigating to /games page');
+          navigate('/games', {
+            replace: true,
+            state: {},
+          });
+        }
       }
     }, 10000);
 
@@ -466,10 +478,7 @@ export default function Game() {
       }
     };
     return () => {
-      // console.log(`Game component cleanup: state.players = ${state?.players}`);
-      // console.log(
-      //   `Game component cleanup: state.playersUpdated = ${state?.playersUpdated}`
-      // );
+      // GameProvider handles closing of ws
       clearInterval(checkInterval);
     };
   }, [
