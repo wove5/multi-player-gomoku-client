@@ -38,20 +38,8 @@ export default function Games() {
       } else if (err.message === 'Not Found') {
         setNoGamesFound(true);
       } else {
-        // } else if (err.message === 'Failed to fetch') {
-        // Sometimes 'fail to fetch' err.msg is returned
-        // possibly due to conflict between Games & GameProvider loading.
-        // but there is possibly some other rare timeout cases also. So
-        // just enforcing a page reload here as the default.
-        // The requirement to have a mob. dev. reload its page from
-        // GameProvider to reinstate ws due to device having been in sleep
-        // mode is behind this occasional behaviour where the games page
-        // "sits" for a long/ indefinite period with no games displayed in
-        // the listing; i.e. showing an empty page with just banner at the top.
-        // More work could/should be done with this.
-        window.location.reload(); // try a reload
+        setNoGamesFound(true); // Consider having 1 default, in case err.msg !== 'Not Found'
       }
-      // else{ navigate('/') } // another possible way?
     }
   }, [logout]);
 

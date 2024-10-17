@@ -40,10 +40,7 @@ export default function GameProvider({ children }: GameProviderProps) {
     return item ? JSON.parse(item) : '';
   };
 
-  console.log(`state?.gameId = ${state?.gameId}`);
-  console.log('GameProvider setting initial value of gameId ');
-  const [gameId, setGameId] = useState<string | undefined>(state?.gameId);
-  console.log(`gameId = ${gameId}`);
+  console.log(`\nGameProvider; state?.gameId = ${state?.gameId}`);
 
   let previousPath = getCurrentPath() === '' ? currentPath : getCurrentPath();
 
@@ -82,13 +79,14 @@ export default function GameProvider({ children }: GameProviderProps) {
         console.log(`setting windowIsActive to: ${!document.hidden}`);
         document.hidden ? setWindowIsActive(false) : setWindowIsActive(true);
       }
-      console.log(`windowIsActive = ${windowIsActive}`);
     }
 
     const handleActivityFalse = () => handleActivity(false);
     const handleActivityTrue = () => handleActivity(true);
 
-    setGameId(state?.gameId);
+    console.log(
+      `GameProvider useEffect setup; state?.gameId = ${state?.gameId}`
+    );
     // This solution works because state is cleared whether directly or programmatically navigating away from Game page.
     if (
       state?.players === undefined &&
@@ -98,15 +96,17 @@ export default function GameProvider({ children }: GameProviderProps) {
       // this branch of the condition is akin to a cleanup but in a retrospective manner
       const userItem = localStorage.getItem('user');
 
-      // state?gameId update is delayed and not captured in time to trigger the restFromGame branch - therefore using gameId state
-      if (userItem && gameId) {
-        // the token needs to be in place to successfully make rest from game api req.
-        restFromGame(gameId).then(() => {
-          ws?.close();
-        });
-      } else {
-        // the Logout btn in Header will have called restFromGame(), so token will be gone.
-        ws?.close();
+      // Two renders occur loading game page - state?.gameId is undefined in 1st render but defined in 2nd.
+      if (ws && ws.readyState === 1) {
+        if (userItem && state?.gameId) {
+          // the token needs to be in place to successfully make rest from game api req.
+          restFromGame(state?.gameId).then(() => {
+            ws.close();
+          });
+        } else {
+          // the Logout btn in Header will have called restFromGame(), so token will be gone.
+          ws.close();
+        }
       }
       console.log('GameProvider useEffect setup: removing event listeners');
       document.removeEventListener('visibilitychange', () => handleActivity);
@@ -131,10 +131,10 @@ export default function GameProvider({ children }: GameProviderProps) {
 
     return () => {
       console.log(
-        `GameProvider component cleanup: state.players = ${state?.players}`
+        `GameProvider useEffect cleanup: state.players = ${state?.players}`
       );
       console.log(
-        `GameProvider component cleanup: state.playersUpdated = ${state?.playersUpdated}`
+        `GameProvider useEffect cleanup: state.playersUpdated = ${state?.playersUpdated}`
       );
       console.log('GameProvider useEffect cleanup: removing event listeners');
       document.removeEventListener('visibilitychange', () => handleActivity);
@@ -147,11 +147,9 @@ export default function GameProvider({ children }: GameProviderProps) {
     currentPath,
     previousPath,
     ws,
-    // optional chaining guards against null state as done in Game component
     state?.players,
     state?.playersUpdated,
     state?.gameId,
-    gameId,
     windowIsActive,
   ]);
 

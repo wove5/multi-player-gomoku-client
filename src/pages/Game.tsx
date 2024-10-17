@@ -34,7 +34,7 @@ import {
   ResetGame,
   UpdateGame,
 } from '../types';
-import { IncompleteGameData } from '../interfaces';
+import { CompletedGameData, IncompleteGameData } from '../interfaces';
 import { GameStatus } from '../types/GameStatus';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -150,12 +150,21 @@ export default function Game() {
       const incompleteGames = await get<IncompleteGameData[]>(
         `${API_HOST}/api`
       );
-      if (incompleteGames && !incompleteGames.find((g) => g._id === gameId)) {
+      const completedGames = await get<CompletedGameData[]>(
+        `${API_HOST}/api/games`
+      );
+      const completedGame =
+        completedGames && completedGames.find((g) => g._id === gameId);
+      const incompleteGame =
+        incompleteGames && incompleteGames.find((g) => g._id === gameId);
+      if (!completedGame && !incompleteGame) {
         setLoading(false);
         setLoadingResultDetermined(true);
         return;
       }
-      const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
+      const result = incompleteGame
+        ? await get<GameInfo>(`${API_HOST}/api/game/${gameId}`)
+        : await get<GameInfo>(`${API_HOST}/api/game-log/${gameId}`);
       setGame(result);
       setLoading(false);
       setLoadingResultDetermined(true);
@@ -165,10 +174,19 @@ export default function Game() {
       setPlayer(
         lastSelectedPositionNumber.length === 0
           ? PLAYER.BLACK
-          : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
-            POSITION_STATUS.BLACK
-          ? PLAYER.WHITE
-          : PLAYER.BLACK
+          : () => {
+              const lastSelectedPositionColor =
+                currentBoardPositions[lastSelectedPositionNumber[0]].status;
+              // result.status is available immediately, game?.status is not.
+              if (result.status === GAMESTATUS.ACTIVE) {
+                return lastSelectedPositionColor === POSITION_STATUS.BLACK
+                  ? PLAYER.WHITE
+                  : PLAYER.BLACK;
+              } else
+                return lastSelectedPositionColor === POSITION_STATUS.BLACK
+                  ? PLAYER.BLACK
+                  : PLAYER.WHITE;
+            }
       );
       navigate(location.pathname, {
         replace: true,
@@ -270,11 +288,6 @@ export default function Game() {
   //TODO: (state?.playersUpdated || state?.players)?.find(...
 
   useEffect(() => {
-    // console.log(`Inside Game useEffect fnc`);
-    // console.log(`Game component setup: state.players = ${state?.players}`);
-    // console.log(
-    //   `Game component setup: state.playersUpdated = ${state?.playersUpdated}`
-    // );
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
     if (state?.game !== undefined) {
@@ -319,17 +332,8 @@ export default function Game() {
         11000
         // && ws.readyState !== CustomWebSocket.OPEN // tbc, but should not be necessary
       ) {
-        if (game?.status === GAMESTATUS.ACTIVE) {
-          console.log('reloading page');
-          window.location.reload();
-          return;
-        } else {
-          console.log('navigating to /games page');
-          navigate('/games', {
-            replace: true,
-            state: {},
-          });
-        }
+        window.location.reload();
+        return;
       }
     }, 10000);
 
