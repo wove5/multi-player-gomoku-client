@@ -43,7 +43,10 @@ export default function Chat(props: ChatProps) {
   const [chatVisible, setChatVisible] = useState(true);
 
   const onSend = () => {
-    if (me && myMessage && ws) {
+    if (me && myMessage && ws.readyState === CustomWebSocket.OPEN) {
+      // Note: DOMException: An attempt was made to use an object that is not, or is no longer, usable.
+      // occurs if a msg send is attempted before ws conn. is made - can occur due to slow network
+      // fixed with conditional on ws OPEN
       ws?.send(
         JSON.stringify({
           message: myMessage,
