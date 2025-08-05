@@ -59,6 +59,7 @@
   },
   "packageManager": "yarn@1.22.22",
   "resolutions": {
-    "@svgr/webpack": "^8.0.0"
+    "@svgr/webpack": "^8.0.0",
+    "resolve-url-loader": "^5.0.0"
   }
 }
