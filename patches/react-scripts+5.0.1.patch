@@ -75,3 +75,25 @@ index 522a81b9..a586e747 100644
      },
    };
  };
+diff --git a/node_modules/react-scripts/scripts/start.js b/node_modules/react-scripts/scripts/start.js
+index 8b9a2c26..4668ca7a 100644
+--- a/node_modules/react-scripts/scripts/start.js
++++ b/node_modules/react-scripts/scripts/start.js
+@@ -141,7 +141,7 @@ checkBrowsers(paths.appPath, isInteractive)
+ 
+     ['SIGINT', 'SIGTERM'].forEach(function (sig) {
+       process.on(sig, function () {
+-        devServer.close();
++        devServer.stop();
+         process.exit();
+       });
+     });
+@@ -149,7 +149,7 @@ checkBrowsers(paths.appPath, isInteractive)
+     if (process.env.CI !== 'true') {
+       // Gracefully exit when stdin ends
+       process.stdin.on('end', function () {
+-        devServer.close();
++        devServer.stop();
+         process.exit();
+       });
+     }
