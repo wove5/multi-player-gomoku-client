@@ -100,7 +100,7 @@ export default function Header() {
                 className={getClassName(
                   state && (state.playersUpdated || state.players)
                     ? (state.playersUpdated || state.players).find(
-                        (p: PlayerDetail) => p.userId === user?._id
+                        (p: PlayerDetail) => p.user._id === user?._id
                       )?.color
                     : undefined
                 )}
@@ -118,15 +118,15 @@ export default function Header() {
               <span
                 className={getClassName(
                   (state.playersUpdated || state.players).find(
-                    (p: PlayerDetail) => p.userId !== user?._id
+                    (p: PlayerDetail) => p.user._id !== user?._id
                   )?.color
                 )}
               >
                 {' '}
                 {
                   (state.playersUpdated || state.players).find(
-                    (p: PlayerDetail) => p.userId !== user?._id
-                  )?.userName
+                    (p: PlayerDetail) => p.user._id !== user?._id
+                  )?.user.userName
                 }{' '}
               </span>
             </div>

@@ -34,7 +34,7 @@ import {
   ResetGame,
   UpdateGame,
 } from '../types';
-import { CompletedGameData, IncompleteGameData } from '../interfaces';
+import { IncompleteGameData } from '../interfaces';
 import { GameStatus } from '../types/GameStatus';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -65,14 +65,14 @@ export default function Game() {
   // const me: PlayerDetail | undefined = useMemo(
   //   () =>
   //     players
-  //       ? players.find((p: PlayerDetail) => p.userId === user?._id)
+  //       ? players.find((p: PlayerDetail) => p.user._id === user?._id)
   //       : undefined,
   //   [players, user?._id]
   // );
   const otherPlayer: PlayerDetail | undefined = useMemo(
     () =>
       players
-        ? players.find((p: PlayerDetail) => p.userId !== user?._id)
+        ? players.find((p: PlayerDetail) => p.user._id !== user?._id)
         : undefined,
     [players, user?._id]
   );
@@ -150,21 +150,30 @@ export default function Game() {
       const incompleteGames = await get<IncompleteGameData[]>(
         `${API_HOST}/api`
       );
-      const completedGames = await get<CompletedGameData[]>(
-        `${API_HOST}/api/games`
-      );
-      const completedGame =
-        completedGames && completedGames.find((g) => g._id === gameId);
+      // completedGame/s is not used; not sure why it was here? If a player 
+      // has not completed any games and refreshes the page for a game they
+      // are currently playing, the api req. will return 404 Not Found error
+      // as per design which gets caught here and results in a blank page.
+      // const completedGames = await get<CompletedGameData[]>(
+      //   `${API_HOST}/api/games`
+      // );
+      // const completedGame =
+      //   completedGames && completedGames.find((g) => g._id === gameId);
       const incompleteGame =
         incompleteGames && incompleteGames.find((g) => g._id === gameId);
-      if (!completedGame && !incompleteGame) {
+      // if (!completedGame && !incompleteGame) {
+      if (!incompleteGame) {
         setLoading(false);
         setLoadingResultDetermined(true);
         return;
       }
-      const result = incompleteGame
-        ? await get<GameInfo>(`${API_HOST}/api/game/${gameId}`)
-        : await get<GameInfo>(`${API_HOST}/api/game-log/${gameId}`);
+      // this appears related to the above-mentioned mistaken use of completedGame/s
+      // const result = incompleteGame
+      //   ? await get<GameInfo>(`${API_HOST}/api/game/${gameId}`)
+      //   : await get<GameInfo>(`${API_HOST}/api/game-log/${gameId}`);
+      // perhaps the original idea was to have a multi-purpose game component
+      // to cover both Game and GameLog pages?
+      const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
       setGame(result);
       setLoading(false);
       setLoadingResultDetermined(true);
@@ -194,6 +203,9 @@ export default function Game() {
       });
       console.log(`game successfully retrieved from API`);
     } catch (err: any) {
+      console.log(`err.message = ${err.message}`);
+      console.log(`err.status = ${err.status}`);
+      console.log(`err = ${err}`);      
       setGame(undefined);
       setLoading(false);
       if (
@@ -405,22 +417,22 @@ export default function Game() {
               },
             });
             msg = `${
-              data.players.find((p: PlayerDetail) => p.userId !== user._id)
+              data.players.find((p: PlayerDetail) => p.user._id !== user._id).user
                 .userName
             } joined game`;
             notify(msg);
           } else if (data.action === ACTION.REENTER) {
             const msg = data.players.find(
-              (p: PlayerDetail) => p.userId !== user._id
-            ).userName;
+              (p: PlayerDetail) => p.user._id !== user._id
+            ).user.userName;
             notify(`${msg} re-entered game`);
           } else if (data.action === ACTION.LEAVE) {
             const msg = `${
-              data.players.find((p: PlayerDetail) => p.userId !== user._id)
+              data.players.find((p: PlayerDetail) => p.user._id !== user._id).user
                 .userName
             } left game`;
             const updatedPlayers = data.players.filter(
-              (p: PlayerDetail) => p.userId !== data.updatedBy
+              (p: PlayerDetail) => p.user._id !== data.updatedBy
             );
             navigate(location.pathname, {
               replace: true,
@@ -432,15 +444,15 @@ export default function Game() {
             notify(msg);
           } else if (data.action === ACTION.REST) {
             const msg = data.players.find(
-              (p: PlayerDetail) => p.userId !== user._id
-            )?.userName;
+              (p: PlayerDetail) => p.user._id !== user._id
+            ).user.userName;
             notify(`${msg} taking rest`);
           } else if (data.action === ACTION.MOVE) {
             const name = data.players.find(
-              (p: PlayerDetail) => p.userId !== user._id
-            ).userName;
+              (p: PlayerDetail) => p.user._id !== user._id
+            ).user.userName;
             const color = data.players.find(
-              (p: PlayerDetail) => p.userId !== user._id
+              (p: PlayerDetail) => p.user._id !== user._id
             ).color;
             console.log(`selectedPosId = ${data.selectedPosId}`);
             console.log(`selectedPosIndex = ${data.selectedPosIndex}`);
@@ -463,16 +475,16 @@ export default function Game() {
         ) {
           updateMessages({
             message: data.message,
-            userId: otherPlayer.userId,
-            userName: otherPlayer.userName,
+            userId: otherPlayer.user._id,
+            userName: otherPlayer.user.userName,
           });
         }
       } catch (error) {
         if (game && game.isMulti) {
           console.log(
             (state?.playersUpdated || state?.players)?.find(
-              (p: PlayerDetail) => p.userId !== user._id
-            ).userName +
+              (p: PlayerDetail) => p.user._id !== user._id
+            ).user.userName +
               ': ' +
               event.data
           );
@@ -573,7 +585,7 @@ export default function Game() {
     }
 
     const findMe = (state?.playersUpdated || state?.players)?.find(
-      (p: PlayerDetail) => p.userId === user?._id
+      (p: PlayerDetail) => p.user._id === user?._id
     );
 
     if (game.isMulti && findMe?.color.toString() !== player.toString()) {
@@ -670,7 +682,7 @@ export default function Game() {
       await put<EnterLeaveGame, GameInfo>(`${API_HOST}/api/game/${gameId}`, {
         action: ACTION.LEAVE,
       });
-      // setPlayers(players?.filter((p) => p.userId !== user._id));
+      // setPlayers(players?.filter((p) => p.user._id !== user._id));
     } catch (err: any) {
       setErrorMessage(err.message);
     }
@@ -725,8 +737,8 @@ export default function Game() {
             {game.status === GAMESTATUS.ACTIVE && (
               <>
                 {' '}
-                {(state.playersUpdated?.length === 1 ||
-                  state.players?.length === 1) && (
+                {(state?.playersUpdated?.length === 1 ||
+                  state?.players?.length === 1) && (
                   <button
                     className={style.button}
                     onClick={() => {
@@ -833,7 +845,7 @@ export default function Game() {
                     expandBoard={expandBoard}
                     myTurn={
                       (state?.playersUpdated || state?.players)
-                        ?.find((p: PlayerDetail) => p.userId === user?._id)
+                        ?.find((p: PlayerDetail) => p.user._id === user?._id)
                         .color.toString() === player.toString() || !game.isMulti
                     }
                     updating={updating}

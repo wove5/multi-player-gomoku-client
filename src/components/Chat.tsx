@@ -33,7 +33,7 @@ export default function Chat(props: ChatProps) {
   const me: PlayerDetail | undefined = useMemo(
     () =>
       players
-        ? players.find((p: PlayerDetail) => p.userId === user?._id)
+        ? players.find((p: PlayerDetail) => p.user._id === user?._id)
         : undefined,
     [players, user?._id]
   );
@@ -50,14 +50,14 @@ export default function Chat(props: ChatProps) {
       ws?.send(
         JSON.stringify({
           message: myMessage,
-          userId: me.userId,
-          userName: me.userName,
+          userId: me.user._id,
+          userName: me.user.userName,
         })
       );
       updateMessages({
         message: myMessage,
-        userId: me.userId,
-        userName: me.userName,
+        userId: me.user._id,
+        userName: me.user.userName,
       });
       setMyMessage('');
     }

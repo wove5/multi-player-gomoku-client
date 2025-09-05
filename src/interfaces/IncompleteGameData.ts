@@ -1,4 +1,4 @@
-import { PLAYER } from '../constants';
+import { PlayerDetail } from '../types';
 
 export interface IncompleteGameData {
   _id: string;
@@ -6,6 +6,5 @@ export interface IncompleteGameData {
   size: number[];
   isMulti: boolean;
   createdAt: Date;
-  players: { userId: string; color: PLAYER }[];
-  users: { userId: string; username: string }[];
+  players: PlayerDetail[];
 }

@@ -23,14 +23,14 @@ export default function GameProvider({ children }: GameProviderProps) {
   const me: PlayerDetail =
     state && (state.playersUpdated || state.players)
       ? (state.playersUpdated || state.players).find(
-          (p: PlayerDetail) => p.userId === user?._id
+          (p: PlayerDetail) => p.user._id === user?._id
         )
       : undefined;
 
   const otherPlayer: PlayerDetail =
     state && (state.playersUpdated || state.players)
       ? (state.playersUpdated || state.players).find(
-          (p: PlayerDetail) => p.userId !== user?._id
+          (p: PlayerDetail) => p.user._id !== user?._id
         )
       : undefined;
 
@@ -87,20 +87,24 @@ export default function GameProvider({ children }: GameProviderProps) {
     console.log(
       `GameProvider useEffect setup; state?.gameId = ${state?.gameId}`
     );
-    // This solution works because state is cleared whether directly or programmatically navigating away from Game page.
+    // state is cleared whether directly or programmatically navigating away from Game page.
     if (
       state?.players === undefined &&
       state?.playersUpdated === undefined &&
-      windowIsActive
+      // state?.gameId === undefined && // incl. here or deeper down as is?
+      windowIsActive &&
+      currentPath !== previousPath
     ) {
       // this branch of the condition is akin to a cleanup but in a retrospective manner
       const userItem = localStorage.getItem('user');
 
       // Two renders occur loading game page - state?.gameId is undefined in 1st render but defined in 2nd.
       if (ws && ws.readyState === 1) {
-        if (userItem && state?.gameId) {
-          // the token needs to be in place to successfully make rest from game api req.
-          restFromGame(state?.gameId).then(() => {
+        // after navigating away from a game, state.gameId is gone, so reconstruct theGameId for a one-off use 
+        const theGameId = previousPath.includes('/') ? previousPath.split('/').at(-1) : '';
+        // token and gameId is needed to successfully make rest from game api req.
+        if (userItem && !state?.gameId && theGameId && theGameId.length > 0) { // !state?.gameId may not be needed?
+          restFromGame(theGameId).then(() => {
             ws.close();
           });
         } else {

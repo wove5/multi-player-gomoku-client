@@ -1,7 +1,9 @@
-import { PLAYER, POSITION_STATUS } from '../constants';
+import { POSITION_STATUS } from '../constants';
 
 export type PlayerDetail = {
-  userId: string;
+  user: {
+    _id: string;
+    userName: string;
+  }
   color: POSITION_STATUS;
-  userName: string;
 };

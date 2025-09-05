@@ -3,7 +3,6 @@ import { PlayerDetail } from './PlayerDetail';
 
 export interface GameInfo {
   _id: string;
-  userId: string;
   gameNumber: number;
   isMulti: boolean;
   size: number[];

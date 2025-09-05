@@ -179,7 +179,7 @@ export default function Home() {
           const result = await get<IncompleteGameData[]>(`${API_HOST}/api`);
           setIncompleteGameOptions(
             result
-              .filter((g) => g.players.map((p) => p.userId).includes(user._id)) //g.players[0].userId === user._id)
+              .filter((g) => g.players.map((p) => p.user._id).includes(user._id)) //g.players[0].userId === user._id)
               .map((g) => ({
                 value: g._id,
                 label: `game-${g.gameNumber} (${g.size[0]}x${g.size[1]} ${
@@ -189,7 +189,7 @@ export default function Home() {
                 } ${
                   g.isMulti && g.players.length > 1
                     ? `(opponent: ${
-                        g.users.filter((p) => p.userId !== user._id)[0].username
+                        g.players.filter((p) => p.user._id !== user._id)[0].user.userName
                       })`
                     : ''
                 }`,
@@ -201,7 +201,7 @@ export default function Home() {
                 (g) =>
                   g.isMulti &&
                   g.players.length === 1 &&
-                  g.players[0].userId !== user._id
+                  g.players[0].user._id !== user._id
               )
               .map((g) => ({
                 value: g._id,
@@ -209,7 +209,7 @@ export default function Home() {
                   g.size[1]
                 } multi-player) started: ${
                   new Date(g.createdAt).toLocaleString().split(',')[0]
-                } (opponent: ${g.users[0].username})`,
+                } (opponent: ${g.players[0].user.userName})`,
               }))
           );
           setLoadingActiveGames(false);
