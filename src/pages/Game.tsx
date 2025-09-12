@@ -59,23 +59,8 @@ export default function Game() {
   const state = location.state;
 
   const { user, logout } = useContext(UserContext);
-  const { previousPath, players, setWs, headerHeight, windowIsActive } =
+  const { previousPath, me, otherPlayer, setWs, headerHeight, windowIsActive } =
     useContext(GameContext);
-
-  // const me: PlayerDetail | undefined = useMemo(
-  //   () =>
-  //     players
-  //       ? players.find((p: PlayerDetail) => p.user._id === user?._id)
-  //       : undefined,
-  //   [players, user?._id]
-  // );
-  const otherPlayer: PlayerDetail | undefined = useMemo(
-    () =>
-      players
-        ? players.find((p: PlayerDetail) => p.user._id !== user?._id)
-        : undefined,
-    [players, user?._id]
-  );
 
   const { gameId = '' } = useParams();
   console.log(`inside Game, running Game fnc; gameId param = ${gameId}`);
@@ -107,7 +92,13 @@ export default function Game() {
     userId: string;
     userName: string;
   }
-  const [messages, setMessages] = useState<Array<Message>>([]);
+  const [messages, setMessages] = useState<Array<Message>>(
+    state === null || state === undefined || state.game === undefined
+      ? []
+      : () => {
+        return state.game.messages;
+      }
+  );
 
   // create a websocket client connection
   const ws = useMemo(
@@ -130,12 +121,18 @@ export default function Game() {
           const currentBoardPositions = state.game.positions;
           const selectedPositionNumbers = state.game.selectedPositions;
           const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
-          return lastSelectedPositionNumber.length === 0
+          const currentPlayers = state.game.players;
+          if (lastSelectedPositionNumber.length === 0) { // lastSelectedPositionNumber is array
+            // give the next move to player who was in the game first
+            return currentPlayers[0].color === POSITION_STATUS.BLACK
             ? PLAYER.BLACK
-            : currentBoardPositions[lastSelectedPositionNumber[0]].status ===
+            : PLAYER.WHITE;
+          } else {
+            return currentBoardPositions[lastSelectedPositionNumber[0]].status ===
               POSITION_STATUS.BLACK
             ? PLAYER.WHITE
             : PLAYER.BLACK;
+          }
         }
   );
 
@@ -182,7 +179,12 @@ export default function Game() {
       const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
       setPlayer(
         lastSelectedPositionNumber.length === 0
-          ? PLAYER.BLACK
+          ? () => {
+            // give the next move to player who was in the game first
+            return result.players[0].color === POSITION_STATUS.BLACK
+            ? PLAYER.BLACK
+            : PLAYER.WHITE;
+          }
           : () => {
               const lastSelectedPositionColor =
                 currentBoardPositions[lastSelectedPositionNumber[0]].status;
@@ -197,6 +199,7 @@ export default function Game() {
                   : PLAYER.WHITE;
             }
       );
+      setMessages(result.messages);
       navigate(location.pathname, {
         replace: true,
         state: { playersUpdated: result.players, gameId },
@@ -253,22 +256,65 @@ export default function Game() {
     [game]
   );
 
-  const updateMessages = useCallback((msg: Message) => {
-    // setMessages([
-    //   ...messages,
-    //   { message: msg.message, userId: msg.userId, userName: msg.userName },
-    // ]);
+  const updateMessages = useCallback(async (msg: Message) => {
 
-    // the functional update ensures messages is not referenced directly and does not trigger rerenders.
-    setMessages((messages) => [
-      ...messages,
-      {
-        message: msg.message,
-        userId: msg.userId,
-        userName: msg.userName,
-      },
-    ]);
-  }, []);
+    const originalMessages = messages
+
+    try {
+      setErrorMessage('');
+
+      // functional update ensures messages is not referenced directly and does not trigger rerenders.
+      setMessages((messages) => [
+        ...messages,
+        {
+          message: msg.message,
+          userId: msg.userId,
+          userName: msg.userName,
+        },
+      ]);
+
+      // update in db only if msg is being sent by this user
+      if (msg.userId === user?._id) {
+        // const result = await put<UpdateGame, Messages>( // tbc - server returning chat
+        await put<UpdateGame, {}>(
+          `${API_HOST}/api/game/${gameId}`,
+          {
+            msg
+          }
+        );
+      }
+      // an incoming msg from other user will not trigger above api call
+      // and therefore updateMessages should complete with no issues
+
+      // consider having a payload of messages in res. from the server & storing it in game?
+      // setGame({
+      //   ...game,
+      //   messages: result.messages
+      // });
+      return { success: true};
+    } catch (err: any) {
+      // this area is for handing a failed db update on msg send only
+      // incoming msg from other player should not generate an error & enter catch block.
+
+      // if database update failed, restore messages array to orig. by removing msg:
+      setMessages(originalMessages);
+
+      if (
+        err.message === 'Invalid token' ||
+        err.message === 'Token missing' ||
+        err.message === 'Invalid user'
+      ) {
+        setErrorMessage(err.message);
+        logout();
+      }
+      setErrorMessage(
+        `Message not sent. Something went wrong. Server &/ or database
+        is non-responsive`
+      );
+      return { success: false };
+    }
+
+  }, [gameId, logout, messages, user?._id]);
 
   // // a handy utility for use in dev mode.
   // useWhatChanged(
@@ -442,6 +488,14 @@ export default function Game() {
               },
             });
             notify(msg);
+            if (game?.selectedPositions.length === 0) {
+              setPlayer(
+                // next move will go to player remaining in game
+                me.color === POSITION_STATUS.BLACK
+                ? PLAYER.BLACK
+                : PLAYER.WHITE
+              );
+            }
           } else if (data.action === ACTION.REST) {
             const msg = data.players.find(
               (p: PlayerDetail) => p.user._id !== user._id
@@ -513,6 +567,7 @@ export default function Game() {
     otherPlayer,
     updateMessages,
     setWs,
+    me?.color
   ]);
 
   useEffect(() => {
@@ -670,7 +725,12 @@ export default function Game() {
         }
       );
       setGame(result);
-      setPlayer(PLAYER.BLACK);
+      setPlayer(
+        // can only be one player in game, so hand next move to them 
+        me.color === POSITION_STATUS.BLACK
+        ? PLAYER.BLACK
+        : PLAYER.WHITE
+      );
     } catch (err: any) {
       setErrorMessage(err.message);
     }

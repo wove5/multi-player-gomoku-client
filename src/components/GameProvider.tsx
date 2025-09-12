@@ -2,7 +2,6 @@ import { useContext, useEffect, useState } from 'react';
 import { GameContext, UserContext } from '../context';
 import { useLocation } from 'react-router-dom';
 import { EnterLeaveGame, PlayerDetail } from '../types';
-import { RestFromGameReply } from '../interfaces';
 import { ACTION, API_HOST } from '../constants';
 import { put } from '../utils/http';
 import { CustomWebSocket } from '../classes';
@@ -20,6 +19,7 @@ export default function GameProvider({ children }: GameProviderProps) {
   const players: Array<PlayerDetail> | undefined =
     state && (state.playersUpdated || state.players);
 
+  // possibly should incl. type | undefined - but seems to work fine as is
   const me: PlayerDetail =
     state && (state.playersUpdated || state.players)
       ? (state.playersUpdated || state.players).find(
@@ -54,7 +54,8 @@ export default function GameProvider({ children }: GameProviderProps) {
   const restFromGame = async (gameId: string) => {
     try {
       console.log(`Sending put request to Rest from game`);
-      await put<EnterLeaveGame, RestFromGameReply>(
+      // await put<EnterLeaveGame, RestFromGameReply>( // unecessary to be receiving data in payload
+      await put<EnterLeaveGame, {}>(
         `${API_HOST}/api/game/${gameId}`,
         {
           action: ACTION.REST,
@@ -104,6 +105,7 @@ export default function GameProvider({ children }: GameProviderProps) {
         const theGameId = previousPath.includes('/') ? previousPath.split('/').at(-1) : '';
         // token and gameId is needed to successfully make rest from game api req.
         if (userItem && !state?.gameId && theGameId && theGameId.length > 0) { // !state?.gameId may not be needed?
+          // TODO: maybe fix redundant restFromGame call on LEAVE game? "Resting" ws msg not sent by server anyway
           restFromGame(theGameId).then(() => {
             ws.close();
           });

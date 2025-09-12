@@ -18,7 +18,7 @@ interface ChatProps {
   // ws: WebSocket;
   ws: CustomWebSocket;
   messages: Message[];
-  updateMessages: (msg: Message) => void;
+  updateMessages: (msg: Message) => Promise<{success: true | false}>;
 }
 
 export default function Chat(props: ChatProps) {
@@ -42,29 +42,42 @@ export default function Chat(props: ChatProps) {
 
   const [chatVisible, setChatVisible] = useState(true);
 
-  const onSend = () => {
-    if (me && myMessage && ws.readyState === CustomWebSocket.OPEN) {
-      // Note: DOMException: An attempt was made to use an object that is not, or is no longer, usable.
-      // occurs if a msg send is attempted before ws conn. is made - can occur due to slow network
-      // fixed with conditional on ws OPEN
-      ws?.send(
-        JSON.stringify({
-          message: myMessage,
-          userId: me.user._id,
-          userName: me.user.userName,
-        })
-      );
-      updateMessages({
-        message: myMessage,
-        userId: me.user._id,
-        userName: me.user.userName,
-      });
-      setMyMessage('');
-    }
+  const onSend = async () => {
     if (inputRef.current?.parentElement) {
       inputRef.current.parentElement.dataset.replicatedValue = '';
       inputRef.current.parentElement.style.height = 'auto';
     }
+    if (me && myMessage && ws.readyState === CustomWebSocket.OPEN) {
+      // Note: DOMException: An attempt was made to use an object that is not, or is no longer, usable.
+      // occurs if a msg send is attempted before ws conn. is made - can occur due to slow network
+      // fixed with conditional on ws OPEN
+      setMyMessage('');
+
+      const result = await updateMessages({
+        message: myMessage,
+        userId: me.user._id,
+        userName: me.user.userName,
+      });
+      if (result.success) {
+        ws?.send(
+          JSON.stringify({
+            message: myMessage,
+            userId: me.user._id,
+            userName: me.user.userName,
+          })
+        );
+        // setMyMessage('');
+      } else {
+        setMyMessage(myMessage);
+      }
+    }
+    // since the changes with updateMessages making async db update, 
+    // textarea exhibits an annoying ("flicker")/ momentary vertical resizing.
+    // moving to top seems to prevent this flicker/flash experience
+    // if (inputRef.current?.parentElement) {
+    //   inputRef.current.parentElement.dataset.replicatedValue = '';
+    //   inputRef.current.parentElement.style.height = 'auto';
+    // }
   };
 
   const toggleChatVisible = () => {
@@ -130,8 +143,10 @@ export default function Chat(props: ChatProps) {
               onChange={(e) => {
                 setMyMessage(e.target.value);
               }}
-              onKeyUp={(e) => {
+              // onKeyUp={(e) => {
+              onKeyDown={(e) => {  // fixes issue of sending an empty msg
                 if (e.key === 'Enter') {
+                  // e.preventDefault(); // attempt to prevent sending empty msg - does not help
                   // onSend();
                   // buttonRef.current?.focus();
                   buttonRef.current?.click();

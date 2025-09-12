@@ -1,4 +1,4 @@
-import { GAMESTATUS, PLAYER, POSITION_STATUS } from '../constants';
+import { GAMESTATUS, PLAYER } from '../constants';
 
 export interface GameStatus {
   status: GAMESTATUS;

@@ -1,4 +1,5 @@
 import { GAMESTATUS, POSITION_STATUS } from '../constants';
+import { Message } from './Message';
 import { PlayerDetail } from './PlayerDetail';
 
 export interface GameInfo {
@@ -15,4 +16,5 @@ export interface GameInfo {
   createdAt: Date;
   updatedAt: Date;
   players: Array<PlayerDetail>;
+  messages: Array<Message>;
 }
