@@ -142,7 +142,7 @@ export default function Game() {
   const [updating, setUpdating] = useState(false);
 
   const fetchGameBoard = useCallback(async () => {
-    console.log(`trying an API call`);
+    console.log(`fetchGameBoard - now trying an API call to fetch game`);
     try {
       const incompleteGames = await get<IncompleteGameData[]>(
         `${API_HOST}/api`
@@ -206,6 +206,7 @@ export default function Game() {
       });
       console.log(`game successfully retrieved from API`);
     } catch (err: any) {
+      console.log('This is in fetchGameBoard')
       console.log(`err.message = ${err.message}`);
       console.log(`err.status = ${err.status}`);
       console.log(`err = ${err}`);      
@@ -216,6 +217,9 @@ export default function Game() {
         err.message === 'Token missing' ||
         err.message === 'Invalid user'
       ) {
+        console.log(`calling logout(), which in turn calls setUser(undefined),
+           which then triggers a rerender of Game page which renders a SessionExpired
+           page down below.`)
         logout();
       }
     }
@@ -326,7 +330,6 @@ export default function Game() {
   //     location.pathname,
   //     state.players,
   //     state.game,
-  //     restFromGame,
   //     gameId,
   //     updateGameFromOtherPlayer,
   //     state.playersUpdated,
@@ -334,8 +337,9 @@ export default function Game() {
   //     otherPlayer,
   //     updateMessages,
   //     setWs,
+  //     state,
   //   ],
-  //   'ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, restFromGame, gameId, updateGameFromOtherPlayer, state.playersUpdated, game, otherPlayer, updateMessages, setWs'
+  //   'ws, user, fetchGameBoard, navigate, location.pathname, state.players, state.game, gameId, updateGameFromOtherPlayer, state.playersUpdated, game, otherPlayer, updateMessages, setWs, state'
   // );
 
   let lastPingTime: React.MutableRefObject<number> = useRef(Date.now());
@@ -346,6 +350,12 @@ export default function Game() {
   //TODO: (state?.playersUpdated || state?.players)?.find(...
 
   useEffect(() => {
+    console.log('Entered Game useEffect');
+    // console.log(`state = ${state}`);
+    // console.log(`state.game = ${state.game}`);
+    // console.log(`state.playersUpdated = ${state?.playersUpdated}`);
+    // console.log(`game = ${game}`);
+    // console.log(`ws = ${ws}`);
     // state.game needs to be removed on first page-load navigating from Home, otherwise any page refresh will reload stale data from
     // location.state.game into the component's "game" state via useState and will be rendered to the DOM instead of fresh data from the API/DB.
     if (state?.game !== undefined) {
@@ -358,8 +368,15 @@ export default function Game() {
         // however, game is deliberately excluded, so that the designed logic will work meaning that
         // subsequent page refreshes or direct-nav's will pull game data from server API & DB via alt. branch.
       });
+      // when page is rerendered/reloaded, state is undefined & setGame makes game undefined also.
+      // Therefore, anything derived from state that is used in useEffect may need to be conditionally
+      // chained when used with accessing properties; eg: state?.playersUpdated, me?.color
     } else if (!game) {
-      fetchGameBoard();
+      fetchGameBoard(); // this fnc performs navigate inserting playersUpdated into state,
+                        // therefore, playersUpated should be immediately available after this;
+                        // it is at least established before me & otherPlayer are, hence condition chaining is
+                        // mandatory for me & otherPlayer or else errors result. conditional chaining for
+                        // playersUpdate can be omitted it seems from testing, but probably safer to incl. it?
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
@@ -384,13 +401,23 @@ export default function Game() {
       // console.log('running checkInterval to check last ping time');
       // the following will apply when server drops connection; the client has no way
       // of knowing, so force a page reload which will recreate the connection and
-      // destroy the old one if it does still exists (it likely doesn't exist)
+      // destroy the old one if it does still exists (it likely doesn't exist).
+      // In the case that server dropped the connection because of token expiration,
+      // the page reload runs fetchGameBoard(), which fails because of an Invalid token,
+      // and then calls logout() from userProvider, which in turn calls setUser(undefined)
+      // which triggers another rerender of Game page and this time the SessionExpired page
+      // is rendered which redirects to the home page.
+      // the console.log before window.location.reload cannot be seen in realtime 
+      // due to speed of rerender unless execution is deliberately paused with a break
+      // point at window.location.reload, or inside ws.onclose.
       if (
         Date.now() - lastPingTime.current >
         11000
         // && ws.readyState !== CustomWebSocket.OPEN // tbc, but should not be necessary
       ) {
+        console.log('Game Page Reloading Window')
         window.location.reload();
+        console.log('Game Page has Reloaded Window')
         return;
       }
     }, 10000);
@@ -402,6 +429,9 @@ export default function Game() {
         console.log('pingTimeout expired - Game component closing ws');
         this.close();
       }, 10000 + 1000);
+      // The console.log in the callback defined in the pingTimeout property above wont
+      // show because pingTimeout is removed from the websocket in ws.onclose before it
+      // gets a chance to run - same comment below where this.pingTimeout is updated
       lastPingTime.current = Date.now();
     }
 
@@ -420,7 +450,7 @@ export default function Game() {
     ws.onopen = heartbeat;
     ws.onclose = function clear(this: CustomWebSocket) {
       console.log('clearing Timeout');
-      clearTimeout(this.pingTimeout);
+      clearTimeout(this.pingTimeout); // pingTimeout gets removed & the cb is not executed
     };
     ws.onmessage = function handleMessage(this: CustomWebSocket, event) {
       // console.log(`incoming msg ~~~`);
@@ -442,6 +472,11 @@ export default function Game() {
           clearTimeout(this.pingTimeout);
           // reset timeout
           this.pingTimeout = setTimeout(() => {
+            // The console.log in the callback defined in the pingTimeout property below wont
+            // show because pingTimeout is removed from the websocket in ws.onclose 
+            // before the cb gets a chance to run, though it can be seen at runtime by commenting 
+            // out the call to clearTimeout in ws.close
+            // - can also do alert('ping timeout occurred; ....' to make the cb execution obvious
             console.log(
               'ping timeout occurred; Game component closing websocket'
             );
@@ -490,8 +525,20 @@ export default function Game() {
             notify(msg);
             if (game?.selectedPositions.length === 0) {
               setPlayer(
-                // next move will go to player remaining in game
-                me.color === POSITION_STATUS.BLACK
+                // // next move will go to player remaining in game
+                // // as explain above, playersUpated is available before me & otherPlayer are.
+                // // me & otherPlayer are derived from playersUpdated eventually.
+                // // Thus, using playersUpdated to access player info and more direct & reliable.
+                // // Condition chaining is mandatory for me & otherPlayer or else errors result.
+                // // conditional chaining for playersUpdate can be omitted it seems from testing,
+                // // seems ok for me.color too, but in dependencies it needs conditional chaining     
+                // me.color === POSITION_STATUS.BLACK // is it safer to conditional chain here?
+                // game.players.find(p => p.user._id === user._id)?.color === POSITION_STATUS.BLACK
+                // // game.players also works, but like me & otherPlayer, game is updated some
+                // // time later than playersUpdated, so decision is to stick with state.playersUpdated.
+                // // Am comfortable omitting conditional chaining because playersUpdated is assigned
+                // // beforehand in the navgiate/ replace mechanism.
+                state.playersUpdated.find((p: PlayerDetail) => p.user._id === user._id)?.color === POSITION_STATUS.BLACK
                 ? PLAYER.BLACK
                 : PLAYER.WHITE
               );
@@ -557,17 +604,20 @@ export default function Game() {
     fetchGameBoard,
     navigate,
     location.pathname,
-    // use optional chaining to handle situations when state is null
-    state?.players,
-    state?.playersUpdated,
-    state?.game,
+    state, // state on its own seems work fine as described below for me.
+    // using optional chaining to handle situations when state is null
+    // state?.players,
+    // state?.playersUpdated,
+    // state?.game,
+    // me,  
+    // me on its own seems to avoid the runtime TypeError: can't access property color, me is undefined
+    // me?.color, // otherwise it needs to be conditionally chained
     gameId,
     updateGameFromOtherPlayer,
     game,
     otherPlayer,
     updateMessages,
     setWs,
-    me?.color
   ]);
 
   useEffect(() => {
@@ -577,6 +627,7 @@ export default function Game() {
   }, [hideLeftRightBtns]);
 
   if (!user) {
+    console.log('No user. rendering a SessionExpired page');
     return <SessionExpired styleName={style['loading-result']} />;
   }
 
@@ -705,6 +756,9 @@ export default function Game() {
         err.message === 'Invalid user'
       ) {
         setErrorMessage(err.message);
+        console.log('This is in updateGame')
+        console.log(`calling logout(), which in turn calls setUser(undefined),
+          then triggers rerender of Game page`)
         logout();
       }
       setErrorMessage(
