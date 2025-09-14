@@ -958,9 +958,8 @@ export default function Game() {
                     addSelectedPosition={updateGame}
                     expandBoard={expandBoard}
                     myTurn={
-                      (state?.playersUpdated || state?.players)
-                        ?.find((p: PlayerDetail) => p.user._id === user?._id)
-                        .color.toString() === player.toString() || !game.isMulti
+                      (player.toString() === me.color.toString() && !updating)
+                       || !game.isMulti
                     }
                     updating={updating}
                   />
