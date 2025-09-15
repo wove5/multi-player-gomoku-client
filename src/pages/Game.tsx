@@ -122,9 +122,11 @@ export default function Game() {
           const selectedPositionNumbers = state.game.selectedPositions;
           const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
           const currentPlayers = state.game.players;
+          const isMulti = state.game.isMulti;
           if (lastSelectedPositionNumber.length === 0) { // lastSelectedPositionNumber is array
-            // give the next move to player who was in the game first
-            return currentPlayers[0].color === POSITION_STATUS.BLACK
+            return !isMulti ? PLAYER.BLACK  // single player game
+            // otherwise, give the next move to player who was in the game first
+            : currentPlayers[0].color === POSITION_STATUS.BLACK
             ? PLAYER.BLACK
             : PLAYER.WHITE;
           } else {
@@ -180,8 +182,9 @@ export default function Game() {
       setPlayer(
         lastSelectedPositionNumber.length === 0
           ? () => {
-            // give the next move to player who was in the game first
-            return result.players[0].color === POSITION_STATUS.BLACK
+            return !result.isMulti ? PLAYER.BLACK  // single player game
+            // otherwise, give the next move to player who was in the game first
+            : result.players[0].color === POSITION_STATUS.BLACK
             ? PLAYER.BLACK
             : PLAYER.WHITE;
           }
@@ -525,6 +528,7 @@ export default function Game() {
             notify(msg);
             if (game?.selectedPositions.length === 0) {
               setPlayer(
+                // !game.isMulti ? PLAYER.BLACK  // N/A: single player leaves: no opponent to be notified 
                 // // next move will go to player remaining in game
                 // // as explain above, playersUpated is available before me & otherPlayer are.
                 // // me & otherPlayer are derived from playersUpdated eventually.
@@ -780,8 +784,9 @@ export default function Game() {
       );
       setGame(result);
       setPlayer(
-        // can only be one player in game, so hand next move to them 
-        me.color === POSITION_STATUS.BLACK
+        !game.isMulti ? PLAYER.BLACK // single player game
+        // otherwise, can only be one player in game, so hand next move to them 
+        : me.color === POSITION_STATUS.BLACK
         ? PLAYER.BLACK
         : PLAYER.WHITE
       );
