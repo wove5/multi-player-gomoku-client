@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import style from './PageNotFound.module.css';
+import { GameContext } from '../context';
 
 interface PageNotFoundProps {
   previousPath?: string;
   message: string;
 }
 export default function PageNotFound(props: PageNotFoundProps) {
+  const { headerHeight} = useContext(GameContext);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,7 +18,14 @@ export default function PageNotFound(props: PageNotFoundProps) {
       } else {
         navigate(-1);
       }
-    }, 1500);
+    }, 3000);
   });
-  return <div className={style.message}>{props.message}</div>;
+  return (
+  <div 
+    className={style.message}
+    style={{ paddingTop: `${(headerHeight ?? 100) / 16 + 0.2}rem` }}
+  >
+    {props.message}
+  </div>
+  );
 }

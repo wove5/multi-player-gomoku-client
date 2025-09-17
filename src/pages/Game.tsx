@@ -34,7 +34,7 @@ import {
   ResetGame,
   UpdateGame,
 } from '../types';
-import { IncompleteGameData } from '../interfaces';
+import { CompletedGameData, IncompleteGameData } from '../interfaces';
 import { GameStatus } from '../types/GameStatus';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -149,30 +149,38 @@ export default function Game() {
       const incompleteGames = await get<IncompleteGameData[]>(
         `${API_HOST}/api`
       );
+      // *********** NO!, it is used - (subsequent reflection) 
       // completedGame/s is not used; not sure why it was here? If a player 
       // has not completed any games and refreshes the page for a game they
       // are currently playing, the api req. will return 404 Not Found error
       // as per design which gets caught here and results in a blank page.
-      // const completedGames = await get<CompletedGameData[]>(
-      //   `${API_HOST}/api/games`
-      // );
-      // const completedGame =
-      //   completedGames && completedGames.find((g) => g._id === gameId);
+      // **  The reason was so that a page reload on a completed game will work.
+      const completedGames = await get<CompletedGameData[]>(
+        `${API_HOST}/api/games`
+      );
+      const completedGame =
+        completedGames && completedGames.find((g) => g._id === gameId);
+      // The game may have just been completed, ie, WON or DRAWN; if so, find
+      // that game and assign it. Then further below, a result is assigned from
+      // either an "incompleteGame" or a "completedGame"
       const incompleteGame =
         incompleteGames && incompleteGames.find((g) => g._id === gameId);
-      // if (!completedGame && !incompleteGame) {
-      if (!incompleteGame) {
+      if (!completedGame && !incompleteGame) {
+      // if (!incompleteGame) {
         setLoading(false);
         setLoadingResultDetermined(true);
         return;
       }
-      // this appears related to the above-mentioned mistaken use of completedGame/s
-      // const result = incompleteGame
-      //   ? await get<GameInfo>(`${API_HOST}/api/game/${gameId}`)
-      //   : await get<GameInfo>(`${API_HOST}/api/game-log/${gameId}`);
+      // this appears related to the above-mentioned mistaken use of completedGame/s?
+      // (It was never a mistake - it was intentional)
+      const result = incompleteGame
+        ? await get<GameInfo>(`${API_HOST}/api/game/${gameId}`)
+        : await get<GameInfo>(`${API_HOST}/api/game-log/${gameId}`);
       // perhaps the original idea was to have a multi-purpose game component
       // to cover both Game and GameLog pages?
-      const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
+      // NO!. The reason as added above is to allow for a page refresh to work
+      // if reloading a game page with game that has just been completed.
+      // const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
       setGame(result);
       setLoading(false);
       setLoadingResultDetermined(true);

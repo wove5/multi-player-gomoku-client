@@ -5,6 +5,8 @@ import { EnterLeaveGame, PlayerDetail } from '../types';
 import { ACTION, API_HOST } from '../constants';
 import { put } from '../utils/http';
 import { CustomWebSocket } from '../classes';
+// import usePreviousLocation from '../hooks/usePreviousLocation';
+import usePreviousPath from '../hooks/usePreviousLocation';
 
 interface GameProviderProps {
   children: React.ReactNode;
@@ -12,7 +14,8 @@ interface GameProviderProps {
 
 export default function GameProvider({ children }: GameProviderProps) {
   const location = useLocation();
-  let currentPath = location.pathname;
+  // let currentPath = location.pathname;
+  const currentPath = location.pathname;
   const state = location.state;
   const { user } = useContext(UserContext);
 
@@ -34,15 +37,17 @@ export default function GameProvider({ children }: GameProviderProps) {
         )
       : undefined;
 
-  // extract "currentPath" from localStorage
-  const getCurrentPath = (): string => {
-    const item = localStorage.getItem('currentPath');
-    return item ? JSON.parse(item) : '';
-  };
+  // // extract "currentPath" from localStorage
+  // const getCurrentPath = (): string => {
+  //   const item = localStorage.getItem('currentPath');
+  //   return item ? JSON.parse(item) : '';
+  // };
 
   console.log(`\nGameProvider; state?.gameId = ${state?.gameId}`);
 
-  let previousPath = getCurrentPath() === '' ? currentPath : getCurrentPath();
+  // let previousPath = getCurrentPath() === '' ? currentPath : getCurrentPath();
+  // const previousPath = usePreviousLocation(location)?.pathname
+  const previousPath = usePreviousPath(currentPath);
 
   const [ws, setWs] = useState<CustomWebSocket | undefined>(undefined);
   const [windowIsActive, setWindowIsActive] = useState<boolean | undefined>(
@@ -67,7 +72,11 @@ export default function GameProvider({ children }: GameProviderProps) {
   };
 
   useEffect(() => {
-    localStorage.setItem('currentPath', JSON.stringify(currentPath));
+    console.log(`location.pathname = ${location.pathname}`)
+    console.log(`currentPath = ${currentPath}`);
+    console.log(`previousPath = ${previousPath}`);
+    // localStorage.setItem('currentPath', JSON.stringify(currentPath));
+    // // localStorage.setItem('previousPath', JSON.stringify(previousPath));
 
     function handleActivity(forcedFlag: boolean | undefined) {
       if (typeof forcedFlag === 'boolean') {
@@ -102,7 +111,7 @@ export default function GameProvider({ children }: GameProviderProps) {
       // Two renders occur loading game page - state?.gameId is undefined in 1st render but defined in 2nd.
       if (ws && ws.readyState === 1) {
         // after navigating away from a game, state.gameId is gone, so reconstruct theGameId for a one-off use 
-        const theGameId = previousPath.includes('/') ? previousPath.split('/').at(-1) : '';
+        const theGameId = previousPath?.includes('/') ? previousPath.split('/').at(-1) : '';
         // token and gameId is needed to successfully make rest from game api req.
         if (userItem && !state?.gameId && theGameId && theGameId.length > 0) { // !state?.gameId may not be needed?
           // TODO: maybe fix redundant restFromGame call on LEAVE game? "Resting" ws msg not sent by server anyway
@@ -136,6 +145,8 @@ export default function GameProvider({ children }: GameProviderProps) {
     }
 
     return () => {
+      // localStorage.setItem('previousPath', JSON.stringify(previousPath));
+      
       console.log(
         `GameProvider useEffect cleanup: state.players = ${state?.players}`
       );
