@@ -246,7 +246,7 @@
 
 .loading-state {
   position: absolute;
-  bottom: -2rem;
+  /* bottom: -2rem; */
   display: flex;
   justify-content: center;
   align-items: center;

@@ -240,9 +240,19 @@ export default function Home() {
   }
 
   return creatingGame ? (
-    <span className={style['loading-game-state']}>Creating game</span>
+    <span 
+      className={style['loading-game-state']}
+      style={{ paddingTop: `${(headerHeight ?? 100) / 16 + 0.2}rem` }}
+    >
+      Creating game
+    </span>
   ) : retrievingGame ? (
-    <span className={style['loading-game-state']}>Retrieving game</span>
+    <span 
+      className={style['loading-game-state']}
+      style={{ paddingTop: `${(headerHeight ?? 100) / 16 + 0.2}rem` }}
+    >
+      Retrieving game
+    </span>
   ) : (
     <div
       className={style.container}

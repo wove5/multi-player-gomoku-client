@@ -650,8 +650,17 @@ export default function Game() {
   }
 
   if (!game) {
+    // this will only be entered for a page reload or direct nav. 
+    // Coming from Home page with a selected game results in game already being set.
     if (loading) {
-      return <span className={style['loading-state']}>Retrieving game</span>;
+      return (
+        <span 
+          className={style['loading-state']}
+          style={{ paddingTop: `${(headerHeight ?? 100) / 16 + 0.2}rem` }}
+        >
+          Retrieving game
+        </span>
+      );
     } else if (loadingResultDetermined) {
       return (
         <PageNotFound previousPath={previousPath} message="Game not found" />
@@ -806,10 +815,12 @@ export default function Game() {
   const leaveGame = async () => {
     try {
       setErrorMessage('');
-      await put<EnterLeaveGame, GameInfo>(`${API_HOST}/api/game/${gameId}`, {
-        action: ACTION.LEAVE,
-      });
-      // setPlayers(players?.filter((p) => p.user._id !== user._id));
+      await put<EnterLeaveGame, {}>(
+        `${API_HOST}/api/game/${gameId}`,
+        {
+          action: ACTION.LEAVE,
+        }
+      );
     } catch (err: any) {
       setErrorMessage(err.message);
     }
@@ -888,7 +899,6 @@ export default function Game() {
             <button
               className={style.button}
               onClick={async () => {
-                console.log(`location.pathname = ${location.pathname}`);
                 if (game.status === GAMESTATUS.ACTIVE) {
                   await leaveGame();
                   navigate('/', { replace: true, state: {} });
