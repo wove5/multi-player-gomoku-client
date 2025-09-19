@@ -540,10 +540,10 @@ export default function Game() {
                 // // next move will go to player remaining in game
                 // // as explain above, playersUpated is available before me & otherPlayer are.
                 // // me & otherPlayer are derived from playersUpdated eventually.
-                // // Thus, using playersUpdated to access player info and more direct & reliable.
+                // // Thus, using playersUpdated to access player info is more direct & reliable.
                 // // Condition chaining is mandatory for me & otherPlayer or else errors result.
-                // // conditional chaining for playersUpdate can be omitted it seems from testing,
-                // // seems ok for me.color too, but in dependencies it needs conditional chaining     
+                // // conditional chaining for playersUpdated can be omitted it seems from testing,
+                // // seems ok for me.color too, but in dependencies it needs conditional chaining
                 // me.color === POSITION_STATUS.BLACK // is it safer to conditional chain here?
                 // game.players.find(p => p.user._id === user._id)?.color === POSITION_STATUS.BLACK
                 // // game.players also works, but like me & otherPlayer, game is updated some
@@ -847,6 +847,12 @@ export default function Game() {
     new Date(game.createdAt).toLocaleString().split(',')[0]
   }`;
 
+  // Note; to reiterate explanations about need for conditional chaining - as elaborated on in useEffect,
+  // because useEffect setup runs only after render or rerender/reload of page. Consider that on initial
+  // render, useEffect setup runs subsequent to the render, and thus state.playersUpdated and me which is
+  // derived from state.playersUpdated are undefined and thus conditional chaining is needed to access
+  // properties from playersUpdated or me inside the return component below - further investigation as
+  // written below shows that location.state is not even available at initial render.
   return (
     <>
       <div
@@ -981,8 +987,17 @@ export default function Game() {
                     addSelectedPosition={updateGame}
                     expandBoard={expandBoard}
                     myTurn={
-                      (player.toString() === me.color.toString() && !updating)
+                      // after create new game when not logged on, me is undefined on nav to the new game page
+                      (player.toString() === me?.color.toString() && !updating) // therefore, conditionally chain
                        || !game.isMulti
+                      // this works too:
+                      // (player.toString() ===
+                      //  state.playersUpdated?.find((p: PlayerDetail) => p.user._id === user._id).color.toString()
+                      //   && !updating )
+                      // one might think the following line would work as is without conditional chaining
+                      //  state.players.find((p: PlayerDetail) => p.user._id === user._id).color.toString()
+                      // It does not work. It appears initial render precedes establishment of compoonent
+                      // state, and in particulart the state from Location.Provider, i.e. location.state                      
                     }
                     updating={updating}
                   />

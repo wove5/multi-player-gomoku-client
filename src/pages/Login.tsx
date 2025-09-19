@@ -59,7 +59,9 @@ export default function Login() {
       setErrorMessage('');
       const result = await login(username, password);
       if (result === true) {
-        if (!boardSize || !isMulti) {
+        if (boardSize === undefined 
+            || boardSize.length !== 2
+            || isMulti === undefined) {
           navigate('/', { replace: true });
         } else {
           try {
@@ -71,7 +73,7 @@ export default function Login() {
               navigate(`/`, { replace: true });
             } else {
               navigate(`/game/${createdGame._id}`, {
-                state: { game: createdGame },
+                state: { game: createdGame, players: createdGame.players },
                 replace: true,
               });
             }
