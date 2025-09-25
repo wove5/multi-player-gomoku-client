@@ -983,6 +983,7 @@ export default function Game() {
                     id={p._id}
                     posId={idx}
                     positionStatus={p.status}
+                    isLastMove={p._id === game.positions[game.selectedPositions.slice(-1)[0]]?._id}
                     gameStatus={game.status}
                     addSelectedPosition={updateGame}
                     expandBoard={expandBoard}

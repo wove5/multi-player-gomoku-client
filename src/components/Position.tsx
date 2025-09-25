@@ -11,6 +11,7 @@ interface PositionProps {
   id: string;
   posId: number;
   positionStatus: POSITION_STATUS;
+  isLastMove?: boolean;
   gameStatus: GAMESTATUS;
   // addSelectedPosition is used in game page, not used in game-log page
   addSelectedPosition?: (id: string, posId: number) => Promise<void>;
@@ -28,6 +29,7 @@ export default function Position(props: PropsWithChildren<PositionProps>) {
     id,
     posId,
     positionStatus,
+    isLastMove,
     gameStatus,
     addSelectedPosition,
     expandBoard,
@@ -40,6 +42,12 @@ export default function Position(props: PropsWithChildren<PositionProps>) {
     switch (true) {
       case positionStatus === POSITION_STATUS.YELLOW:
         return style.error;
+      case positionStatus === POSITION_STATUS.BLACK &&
+        isLastMove:
+        return `${style['last-move']} ${style.black}`
+      case positionStatus === POSITION_STATUS.WHITE &&
+        isLastMove:
+        return `${style['last-move']} ${style.white}`
       case positionStatus === POSITION_STATUS.BLACK:
         return style.black;
       case positionStatus === POSITION_STATUS.WHITE:
