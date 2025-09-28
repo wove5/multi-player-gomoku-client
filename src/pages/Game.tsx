@@ -158,13 +158,11 @@ export default function Game() {
       const completedGames = await get<CompletedGameData[]>(
         `${API_HOST}/api/games`
       );
-      const completedGame =
-        completedGames && completedGames.find((g) => g._id === gameId);
+      const completedGame = completedGames.find((g) => g._id === gameId);
       // The game may have just been completed, ie, WON or DRAWN; if so, find
       // that game and assign it. Then further below, a result is assigned from
       // either an "incompleteGame" or a "completedGame"
-      const incompleteGame =
-        incompleteGames && incompleteGames.find((g) => g._id === gameId);
+      const incompleteGame = incompleteGames.find((g) => g._id === gameId);
       if (!completedGame && !incompleteGame) {
       // if (!incompleteGame) {
         setLoading(false);

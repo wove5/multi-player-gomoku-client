@@ -28,7 +28,7 @@ export default function GameLog() {
       const completedGames = await get<CompletedGameData[]>(
         `${API_HOST}/api/games`
       );
-      if (completedGames && !completedGames.find((g) => g._id === gameId)) {
+      if (!completedGames.find((g) => g._id === gameId)) {
         setLoading(false);
         setLoadingResultDetermined(true);
         return;
