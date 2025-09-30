@@ -23,7 +23,7 @@ export default function PageNotFound(props: PageNotFoundProps) {
   return (
   <div 
     className={style.message}
-    style={{ paddingTop: `${(headerHeight ?? 100) / 16 + 0.2}rem` }}
+    style={{ paddingTop: `${(headerHeight ?? 100) / 10 + 0.5}rem` }}
   >
     {props.message}
   </div>

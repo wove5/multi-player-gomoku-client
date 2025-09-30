@@ -181,7 +181,8 @@ export default function Game() {
       // const result = await get<GameInfo>(`${API_HOST}/api/game/${gameId}`);
       setGame(result);
       setLoading(false);
-      setLoadingResultDetermined(true);
+      // this causes a momentary display of "Game Not Found"
+      // setLoadingResultDetermined(true); // only useful on game retrieval finding no game
       const currentBoardPositions = result.positions;
       const selectedPositionNumbers = result.selectedPositions;
       const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
@@ -218,9 +219,14 @@ export default function Game() {
       console.log('This is in fetchGameBoard')
       console.log(`err.message = ${err.message}`);
       console.log(`err.status = ${err.status}`);
-      console.log(`err = ${err}`);      
+      console.log(`err = ${err}`);
+      console.table(err);
+      // initially, the page momentarily renders, calls the API, then quickly starts over again.
+      // the first time round, loading is left as true so that loading progess msg is maintained
+      if (err.message !== 'NetworkError when attempting to fetch resource.') {
+        setLoading(false) // all other times, this is treated as a genuine failed req. and loading
+      }                   // progress msg is skipped and falls through to final Game not found msg
       setGame(undefined);
-      setLoading(false);
       if (
         err.message === 'Invalid token' ||
         err.message === 'Token missing' ||
@@ -654,7 +660,7 @@ export default function Game() {
       return (
         <span 
           className={style['loading-state']}
-          style={{ paddingTop: `${(headerHeight ?? 100) / 16 + 0.2}rem` }}
+          style={{ paddingTop: `${(headerHeight ?? 100) / 10 + 0.5}rem` }}
         >
           Retrieving game
         </span>

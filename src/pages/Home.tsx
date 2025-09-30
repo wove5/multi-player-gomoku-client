@@ -242,14 +242,14 @@ export default function Home() {
   return creatingGame ? (
     <span 
       className={style['loading-game-state']}
-      style={{ paddingTop: `${(headerHeight ?? 100) / 16 + 0.2}rem` }}
+      style={{ paddingTop: `${(headerHeight ?? 100) / 10 + 0.5}rem` }}
     >
       Creating game
     </span>
   ) : retrievingGame ? (
     <span 
       className={style['loading-game-state']}
-      style={{ paddingTop: `${(headerHeight ?? 100) / 16 + 0.2}rem` }}
+      style={{ paddingTop: `${(headerHeight ?? 100) / 10 + 0.5}rem` }}
     >
       Retrieving game
     </span>

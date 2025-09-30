@@ -245,7 +245,7 @@
 }
 
 .loading-state {
-  position: absolute;
+  /* position: absolute; */
   /* bottom: -2rem; */
   display: flex;
   justify-content: center;
