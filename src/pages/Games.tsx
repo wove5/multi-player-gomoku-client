@@ -70,7 +70,12 @@ export default function Games() {
   if (completedGames.length === 0) {
     if (loading) {
       return (
-        <span className={style['loading-games-state']}>Retrieving games</span>
+        <span
+          className={style['loading-games-state']}
+          style={{ paddingTop: `${(headerHeight ?? 100) / 10 + 0.5}rem` }}
+        >
+          Retrieving games
+        </span>
       );
     } else if (noGamesFound) {
       return (

@@ -244,9 +244,7 @@
   color: rgba(0, 0, 0, 0.3);
 }
 
-.loading-state {
-  /* position: absolute; */
-  /* bottom: -2rem; */
+.game-loading-state {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -255,7 +253,24 @@
   font-weight: 500;
 }
 
-.loading-state:after {
+.game-loading-state:after {
+  clip-path: inset(0 3ch 0 0);
+  animation: x steps(4, end) 450ms infinite;
+  content: '\2026';
+}
+
+.game-updating-state {
+  position: absolute;
+  bottom: -2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1rem;
+  letter-spacing: 0.15rem;
+  font-weight: 500;
+}
+
+.game-updating-state:after {
   clip-path: inset(0 3ch 0 0);
   animation: x steps(4, end) 450ms infinite;
   content: '\2026';

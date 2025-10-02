@@ -666,7 +666,7 @@ export default function Game() {
     if (loading) {
       return (
         <span 
-          className={style['loading-state']}
+          className={style['game-loading-state']}
           style={{ paddingTop: `${(headerHeight ?? 100) / 10 + 0.5}rem` }}
         >
           Retrieving game
@@ -1156,10 +1156,10 @@ export default function Game() {
             </div>
           )}
           {updating.current && (
-            <span className={style['loading-state']}>updating game</span>
+            <span className={style['game-updating-state']}>updating game</span>
           )}
           {resetting.current && (
-            <span className={style['loading-state']}>resetting game</span>
+            <span className={style['game-updating-state']}>resetting game</span>
           )}
         </div>
         <div
