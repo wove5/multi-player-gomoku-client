@@ -18,6 +18,7 @@ interface PositionProps {
   expandBoard?: () => void;
   myTurn?: boolean;
   updating?: boolean;
+  resetting?: boolean;
 }
 
 export default function Position(props: PropsWithChildren<PositionProps>) {
@@ -35,6 +36,7 @@ export default function Position(props: PropsWithChildren<PositionProps>) {
     expandBoard,
     myTurn,
     updating,
+    resetting,
   } = props;
 
   const getClassNames = () => {
@@ -69,7 +71,7 @@ export default function Position(props: PropsWithChildren<PositionProps>) {
       expandBoard && expandBoard();
       return;
     } else if (
-      updating ||
+      updating || resetting ||
       positionStatus === POSITION_STATUS.WHITE ||
       positionStatus === POSITION_STATUS.BLACK ||
       gameStatus !== GAMESTATUS.ACTIVE ||

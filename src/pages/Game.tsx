@@ -141,7 +141,6 @@ export default function Game() {
   const [loading, setLoading] = useState(true);
   const [loadingResultDetermined, setLoadingResultDetermined] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [updating, setUpdating] = useState(false);
 
   const fetchGameBoard = useCallback(async () => {
     console.log(`fetchGameBoard - now trying an API call to fetch game`);
@@ -358,6 +357,8 @@ export default function Game() {
   // );
 
   let lastPingTime: React.MutableRefObject<number> = useRef(Date.now());
+  let updating: React.MutableRefObject<boolean> = useRef(false);
+  let resetting: React.MutableRefObject<boolean> = useRef(false);
 
   //TODO: keep an ongoing eye out for TypeError "Cannot read properties of undefined (reading 'find')"... error occurred once on mobile
   //TODO: during testing but was not able to be replicated or narrowed down to the particular array.find() method in this file.
@@ -642,6 +643,12 @@ export default function Game() {
     }
   }, [hideLeftRightBtns]);
 
+  // useEffect(() => {
+  //   console.log('useEffect for setting updating.current = false')
+  //   updating.current = false
+  //   console.log(`updating.current = ${updating.current}`);
+  // }, [game])
+
   if (!user) {
     console.log('No user. rendering a SessionExpired page');
     return <SessionExpired styleName={style['loading-result']} />;
@@ -680,6 +687,9 @@ export default function Game() {
   }
 
   const updateGame = async (id: string, posId: number) => {
+    if (resetting.current === true) {
+      return;
+    }
     console.log(`entered updateGame`);
     if (
       // if a selection had already been made but the db update had failed
@@ -694,8 +704,77 @@ export default function Game() {
           : p
       );
       const originalSelectedPositions = game.selectedPositions.slice(0, -1);
+      // this is probably what should be done
+      setGame({
+        ...game,
+        positions: originalPositions,
+        selectedPositions: originalSelectedPositions,
+      });
+      // this will be the 1st update state put into queue, so game state should be latest
+      // but for good practice, could/should wrap the above into a updater function.
 
-      const newPositions = originalPositions.map((p) => {
+      // const newPositions = originalPositions.map((p) => {
+      //   return p._id === id
+      //     ? {
+      //         ...p,
+      //         status:
+      //           player === PLAYER.BLACK
+      //             ? POSITION_STATUS.BLACK
+      //             : POSITION_STATUS.WHITE,
+      //       }
+      //     : p;
+      // });
+      // const newSelectedPositions = [...originalSelectedPositions, posId];
+
+      // setGame({
+      //   ...game,
+      //   positions: newPositions,
+      //   selectedPositions: newSelectedPositions,
+      // });
+    }
+
+    // const findMe = (state?.playersUpdated || state?.players)?.find(
+    //   (p: PlayerDetail) => p.user._id === user?._id
+    // );
+
+    // if ((game.isMulti && findMe?.color.toString() !== player.toString()) || updating) {
+    //   // abort here if not player's turn
+    //   return;
+    // }
+
+    setErrorMessage('');
+    // carry out the selection operation and try making all the necessary updates in the database
+    updating.current = true
+    console.log(`in updateGame. updating.current = ${updating.current}`);
+    // const newPositions = game.positions.map((p) => {
+    //   return p._id === id
+    //     ? {
+    //         ...p,
+    //         status:
+    //           player === PLAYER.BLACK
+    //             ? POSITION_STATUS.BLACK
+    //             : POSITION_STATUS.WHITE,
+    //       }
+    //     : p;
+    // });
+    // const newSelectedPositions = [...game.selectedPositions, posId];
+    // // set positions & selectedPositions ahead of the api call to make it appear more responsive
+    // setGame({
+    //   ...game,
+    //   positions: newPositions,
+    //   selectedPositions: newSelectedPositions,
+    // });
+
+    // // this is probably what should be done
+    const originalPlayer = player;
+    let originalGame = { ...game }; // make a copy of the game as it was before mutation by a move update
+                                    // seems to need assigning here because in catch block it is possibly undefined
+    setGame(game => { // using updater function in case that first part of updateGame undid a failed db update
+      if (game === undefined) return; // some type guarding to protect updater function - should not occur anyway
+                                      // javascript implicitly returns undefined if returning no value
+                                      // so if game is undefined, it stays undefined.
+      originalGame = { ...game } // make a copy of the game again to take into account any reverted failed db update
+      const newPositions = game.positions.map((p) => {
         return p._id === id
           ? {
               ...p,
@@ -706,45 +785,17 @@ export default function Game() {
             }
           : p;
       });
-      const newSelectedPositions = [...originalSelectedPositions, posId];
+      const newSelectedPositions = [...game.selectedPositions, posId];
+      // set positions & selectedPositions ahead of the api call to make it appear more responsive
+      return (
+        { 
+          ...game,  // game is either the original, or original from revert of failed db update
+          positions: newPositions,
+          selectedPositions: newSelectedPositions,
+        }
+      )
+    })
 
-      setGame({
-        ...game,
-        positions: newPositions,
-        selectedPositions: newSelectedPositions,
-      });
-    }
-
-    const findMe = (state?.playersUpdated || state?.players)?.find(
-      (p: PlayerDetail) => p.user._id === user?._id
-    );
-
-    if (game.isMulti && findMe?.color.toString() !== player.toString()) {
-      // abort here if not player's turn
-      return;
-    }
-
-    setErrorMessage('');
-    // carry out the selection operation and try making all the necessary updates in the database
-    setUpdating(true);
-    const newPositions = game.positions.map((p) => {
-      return p._id === id
-        ? {
-            ...p,
-            status:
-              player === PLAYER.BLACK
-                ? POSITION_STATUS.BLACK
-                : POSITION_STATUS.WHITE,
-          }
-        : p;
-    });
-    const newSelectedPositions = [...game.selectedPositions, posId];
-    // set positions & selectedPositions ahead of the api call to make it appear more responsive
-    setGame({
-      ...game,
-      positions: newPositions,
-      selectedPositions: newSelectedPositions,
-    });
     try {
       // update game in db
       const result = await put<UpdateGame, GameStatus>(
@@ -753,28 +804,48 @@ export default function Game() {
           id: id,
         }
       );
-      setGame({
-        ...game,
-        status: result.status, // status is the one that needs updating, but
-        positions: newPositions, // need to set positions & selectedPositions again
-        selectedPositions: newSelectedPositions, // otherwise ...game will overwrite them with their original values
+      // setGame({
+      //   ...game,
+      //   status: result.status, // status is the one that needs updating, but
+      //   positions: newPositions, // need to set positions & selectedPositions again
+      //   selectedPositions: newSelectedPositions, // otherwise ...game will overwrite them with their original values
+      // });
+      setGame(game => {
+        if (game === undefined) return;
+        return (
+          {
+            ...game, // with updater fnc., game has latest changes from prev batched state update, i.e. the move
+            status: result.status,
+          }
+        )
       });
+
+      console.log(game);
       // set the player to whatever the server sends back
       setPlayer(result.player);
-      setUpdating(false);
+      updating.current = false;
     } catch (err: any) {
       // for any failed database updates
       // carry out the following selection operation
-      const newPositions = game.positions.map((p) => {
+      // trying replacement of game with originalGame because game could be the one
+      // from a failed db update prior to this failed update, and a yellow position
+      // should be rendered onto a clean, original board state, not with other failed
+      // update attempts; original board state is that which is consistent with copy in db.
+      // const newPositions = game.positions.map((p) => {
+      const newPositions = originalGame.positions.map((p) => {
         return p._id === id ? { ...p, status: POSITION_STATUS.YELLOW } : p;
       });
-      const newSelectedPositions = [...game.selectedPositions, posId];
-      setGame({
-        ...game,
+      // const newSelectedPositions = [...game.selectedPositions, posId];
+      const newSelectedPositions = [...originalGame.selectedPositions, posId];
+      setGame({  // an updater function should not be necessary here
+        // ...game,
+        ...originalGame,
         positions: newPositions,
         selectedPositions: newSelectedPositions,
       });
-      setUpdating(false);
+      setPlayer(originalPlayer);  // need to monitor this to see if it is right.
+                                  // might be ok to leave out?
+      updating.current = false;
       if (
         err.message === 'Invalid token' ||
         err.message === 'Token missing' ||
@@ -787,16 +858,46 @@ export default function Game() {
         logout();
       }
       setErrorMessage(
-        `Something went wrong. Your selected position is not confirmed yet.
-         it is marked in yellow for now. You can try selecting it again 
-         or you can choose a different position if you wish.`
+        `Something went wrong. Your selected position is not confirmed yet
+         and is marked in yellow for now, which means it may, or may not
+         have been updated in the database. You can try selecting it again,
+         and if this error reappears, then refresh the page.`
       );
     }
   };
 
   const resetGame = async () => {
+    if (game.selectedPositions.length === 0) {
+      return;
+    }
+    if (updating.current === true) {
+      return;
+    }
+    const originalGame = { ...game }
+    const originalPlayer = player;
     try {
       setErrorMessage('');
+      
+      // updating.current = true;
+      resetting.current = true;
+      console.log(`in resetGame. updating.current = ${updating.current}`);
+      const newPositions = game.positions.map((p) => {
+        return { ...p, status: POSITION_STATUS.NONE };
+      });
+      setGame({  // an updater function should not be necessary here
+        ...game,
+        positions: newPositions,
+        selectedPositions: [],
+      });
+      // // setPlayer either here or ...     
+      // setPlayer(
+      //   !game.isMulti ? PLAYER.BLACK // single player game
+      //   // otherwise, can only be one player in game, so hand next move to them 
+      //   : me.color === POSITION_STATUS.BLACK
+      //   ? PLAYER.BLACK
+      //   : PLAYER.WHITE
+      // );
+
       const result = await put<ResetGame, GameInfo>(
         `${API_HOST}/api/game/${gameId}`,
         {
@@ -804,6 +905,8 @@ export default function Game() {
         }
       );
       setGame(result);
+      console.log(game.selectedPositions);
+      // // or set Player here??
       setPlayer(
         !game.isMulti ? PLAYER.BLACK // single player game
         // otherwise, can only be one player in game, so hand next move to them 
@@ -811,7 +914,12 @@ export default function Game() {
         ? PLAYER.BLACK
         : PLAYER.WHITE
       );
+      resetting.current = false;
     } catch (err: any) {
+      setGame(originalGame); // this will be set back to the original, unmodified game
+      setPlayer(originalPlayer);
+      // updating.current = false;
+      resetting.current = false;
       setErrorMessage(err.message);
     }
   };
@@ -993,8 +1101,8 @@ export default function Game() {
                     expandBoard={expandBoard}
                     myTurn={
                       // after create new game when not logged on, me is undefined on nav to the new game page
-                      (player.toString() === me?.color.toString() && !updating) // therefore, conditionally chain
-                       || !game.isMulti
+                      (player.toString() === me?.color.toString() && !updating.current && !resetting.current) 
+                       || (!game.isMulti && !updating.current && !resetting.current)      // therefore, conditionally chain
                       // this works too:
                       // (player.toString() ===
                       //  state.playersUpdated?.find((p: PlayerDetail) => p.user._id === user._id).color.toString()
@@ -1004,7 +1112,8 @@ export default function Game() {
                       // It does not work. It appears initial render precedes establishment of compoonent
                       // state, and in particulart the state from Location.Provider, i.e. location.state                      
                     }
-                    updating={updating}
+                    updating={updating.current}
+                    resetting={resetting.current}
                   />
                 ))}
               </div>
@@ -1046,8 +1155,11 @@ export default function Game() {
               {<Message variant="error" message={errorMessage} />}
             </div>
           )}
-          {updating && (
+          {updating.current && (
             <span className={style['loading-state']}>updating game</span>
+          )}
+          {resetting.current && (
+            <span className={style['loading-state']}>resetting game</span>
           )}
         </div>
         <div
