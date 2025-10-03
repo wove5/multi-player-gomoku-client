@@ -88,7 +88,7 @@ export default function Chat(props: ChatProps) {
     if (scrollBottomRef.current) {
       scrollBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  });
+  }, [messages]);
 
   function auto_height(event: React.ChangeEvent<HTMLTextAreaElement>) {
     const { target } = event;
