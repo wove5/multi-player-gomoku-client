@@ -13,7 +13,7 @@ export default function GameLog() {
   const { user, logout } = useContext(UserContext);
   const navigate = useNavigate();
   const location = useLocation();
-  const { previousPath } = useContext(GameContext);
+  const { previousPath, headerHeight } = useContext(GameContext);
   const { gameId } = useParams();
   const [game, setGame] = useState<GameInfo | undefined>(undefined);
 
@@ -72,7 +72,14 @@ export default function GameLog() {
 
   if (!game) {
     if (loading) {
-      return <span className={style['loading-state']}>Retrieving game</span>;
+      return (
+        <span 
+          className={style['loading-state']}
+          style={{ paddingTop: `${(headerHeight ?? 100) / 10 + 0.5}rem` }}
+        >
+          Retrieving completed game
+        </span>
+      );
     } else if (loadingResultDetermined) {
       return (
         <PageNotFound previousPath={previousPath} message="Game not found" />
