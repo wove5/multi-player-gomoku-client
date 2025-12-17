@@ -31,8 +31,11 @@ import {
   EnterLeaveGame,
   GameInfo,
   PlayerDetail,
-  ResetGame,
-  UpdateGame,
+  // ResetGame,
+  // UpdateGame,
+  UpdateGameMove,
+  UpdateGameMsg,
+  UpdateGameReset,
 } from '../types';
 import { CompletedGameData, IncompleteGameData } from '../interfaces';
 import { GameStatus } from '../types/GameStatus';
@@ -44,7 +47,7 @@ import Fireworks from 'react-canvas-confetti/dist/presets/fireworks';
 
 const getWebSocketURL = () => {
   // if (!API_HOST) return `ws://localhost:8080`;
-  if (!API_HOST) return `ws://${window.location.hostname}:8080`;
+  if (!API_HOST) return `ws://${window.location.hostname}:8081`;
   const hostURL = new URL(API_HOST);
   return `${hostURL.protocol === 'https:' ? `wss` : `ws`}://${
     hostURL.hostname
@@ -96,8 +99,8 @@ export default function Game() {
     state === null || state === undefined || state.game === undefined
       ? []
       : () => {
-        return state.game.messages;
-      }
+          return state.game.messages;
+        }
   );
 
   // create a websocket client connection
@@ -123,17 +126,19 @@ export default function Game() {
           const lastSelectedPositionNumber = selectedPositionNumbers.slice(-1);
           const currentPlayers = state.game.players;
           const isMulti = state.game.isMulti;
-          if (lastSelectedPositionNumber.length === 0) { // lastSelectedPositionNumber is array
-            return !isMulti ? PLAYER.BLACK  // single player game
-            // otherwise, give the next move to player who was in the game first
-            : currentPlayers[0].color === POSITION_STATUS.BLACK
-            ? PLAYER.BLACK
-            : PLAYER.WHITE;
+          if (lastSelectedPositionNumber.length === 0) {
+            // lastSelectedPositionNumber is array
+            return !isMulti
+              ? PLAYER.BLACK // single player game
+              : // otherwise, give the next move to player who was in the game first
+              currentPlayers[0].color === POSITION_STATUS.BLACK
+              ? PLAYER.BLACK
+              : PLAYER.WHITE;
           } else {
-            return currentBoardPositions[lastSelectedPositionNumber[0]].status ===
-              POSITION_STATUS.BLACK
-            ? PLAYER.WHITE
-            : PLAYER.BLACK;
+            return currentBoardPositions[lastSelectedPositionNumber[0]]
+              .status === POSITION_STATUS.BLACK
+              ? PLAYER.WHITE
+              : PLAYER.BLACK;
           }
         }
   );
@@ -148,8 +153,8 @@ export default function Game() {
       const incompleteGames = await get<IncompleteGameData[]>(
         `${API_HOST}/api`
       );
-      // *********** NO!, it is used - (subsequent reflection) 
-      // completedGame/s is not used; not sure why it was here? If a player 
+      // *********** NO!, it is used - (subsequent reflection)
+      // completedGame/s is not used; not sure why it was here? If a player
       // has not completed any games and refreshes the page for a game they
       // are currently playing, the api req. will return 404 Not Found error
       // as per design which gets caught here and results in a blank page.
@@ -163,7 +168,7 @@ export default function Game() {
       // either an "incompleteGame" or a "completedGame"
       const incompleteGame = incompleteGames.find((g) => g._id === gameId);
       if (!completedGame && !incompleteGame) {
-      // if (!incompleteGame) {
+        // if (!incompleteGame) {
         setLoading(false);
         setLoadingResultDetermined(true);
         return;
@@ -188,12 +193,13 @@ export default function Game() {
       setPlayer(
         lastSelectedPositionNumber.length === 0
           ? () => {
-            return !result.isMulti ? PLAYER.BLACK  // single player game
-            // otherwise, give the next move to player who was in the game first
-            : result.players[0].color === POSITION_STATUS.BLACK
-            ? PLAYER.BLACK
-            : PLAYER.WHITE;
-          }
+              return !result.isMulti
+                ? PLAYER.BLACK // single player game
+                : // otherwise, give the next move to player who was in the game first
+                result.players[0].color === POSITION_STATUS.BLACK
+                ? PLAYER.BLACK
+                : PLAYER.WHITE;
+            }
           : () => {
               const lastSelectedPositionColor =
                 currentBoardPositions[lastSelectedPositionNumber[0]].status;
@@ -215,7 +221,7 @@ export default function Game() {
       });
       console.log(`game successfully retrieved from API`);
     } catch (err: any) {
-      console.log('This is in fetchGameBoard')
+      console.log('This is in fetchGameBoard');
       console.log(`err.message = ${err.message}`);
       console.log(`err.status = ${err.status}`);
       console.log(`err = ${err}`);
@@ -223,8 +229,8 @@ export default function Game() {
       // initially, the page momentarily renders, calls the API, then quickly starts over again.
       // the first time round, loading is left as true so that loading progess msg is maintained
       if (err.message !== 'NetworkError when attempting to fetch resource.') {
-        setLoading(false) // all other times, this is treated as a genuine failed req. and loading
-      }                   // progress msg is skipped and falls through to final Game not found msg
+        setLoading(false); // all other times, this is treated as a genuine failed req. and loading
+      } // progress msg is skipped and falls through to final Game not found msg
       setGame(undefined);
       if (
         err.message === 'Invalid token' ||
@@ -233,7 +239,7 @@ export default function Game() {
       ) {
         console.log(`calling logout(), which in turn calls setUser(undefined),
            which then triggers a rerender of Game page which renders a SessionExpired
-           page down below.`)
+           page down below.`);
         logout();
       }
     }
@@ -274,65 +280,72 @@ export default function Game() {
     [game]
   );
 
-  const updateMessages = useCallback(async (msg: Message) => {
+  const updateMessages = useCallback(
+    async (msg: Message) => {
+      const originalMessages = messages;
 
-    const originalMessages = messages
+      try {
+        setErrorMessage('');
 
-    try {
-      setErrorMessage('');
-
-      // functional update ensures messages is not referenced directly and does not trigger rerenders.
-      setMessages((messages) => [
-        ...messages,
-        {
-          message: msg.message,
-          userId: msg.userId,
-          userName: msg.userName,
-        },
-      ]);
-
-      // update in db only if msg is being sent by this user
-      if (msg.userId === user?._id) {
-        // const result = await put<UpdateGame, Messages>( // tbc - server returning chat
-        await put<UpdateGame, {}>(
-          `${API_HOST}/api/game/${gameId}`,
+        // functional update ensures messages is not referenced directly and does not trigger rerenders.
+        setMessages((messages) => [
+          ...messages,
           {
-            msg
-          }
-        );
-      }
-      // an incoming msg from other user will not trigger above api call
-      // and therefore updateMessages should complete with no issues
+            message: msg.message,
+            userId: msg.userId,
+            userName: msg.userName,
+          },
+        ]);
 
-      // consider having a payload of messages in res. from the server & storing it in game?
-      // setGame({
-      //   ...game,
-      //   messages: result.messages
-      // });
-      return { success: true};
-    } catch (err: any) {
-      // this area is for handing a failed db update on msg send only
-      // incoming msg from other player should not generate an error & enter catch block.
+        // update in db only if msg is being sent by this user
+        if (msg.userId === user?._id) {
+          // const result = await put<UpdateGame, Messages>( // tbc - server returning chat
+          // await put<UpdateGame, {}>(`${API_HOST}/api/game/${gameId}`, {
+          await put<UpdateGameMsg, {}>(`${API_HOST}/api/game/${gameId}`, {
+            // msg,
+            action: ACTION.MSG,
+            input: {
+              msg: {
+                message: msg.message,
+                userId: msg.userId,
+                userName: msg.userName,
+              },
+            },
+          });
+        }
+        // an incoming msg from other user will not trigger above api call
+        // and therefore updateMessages should complete with no issues
 
-      // if database update failed, restore messages array to orig. by removing msg:
-      setMessages(originalMessages);
+        // consider having a payload of messages in res. from the server & storing it in game?
+        // setGame({
+        //   ...game,
+        //   messages: result.messages
+        // });
+        return { success: true };
+      } catch (err: any) {
+        // this area is for handing a failed db update on msg send only
+        // incoming msg from other player should not generate an error & enter catch block.
 
-      if (
-        err.message === 'Invalid token' ||
-        err.message === 'Token missing' ||
-        err.message === 'Invalid user'
-      ) {
-        setErrorMessage(err.message);
-        logout();
-      }
-      setErrorMessage(
-        `Message not sent. Something went wrong. Server &/ or database
+        // if database update failed, restore messages array to orig. by removing msg:
+        setMessages(originalMessages);
+
+        if (
+          err.message === 'Invalid token' ||
+          err.message === 'Token missing' ||
+          err.message === 'Invalid user'
+        ) {
+          setErrorMessage(err.message);
+          logout();
+        }
+        setErrorMessage(
+          `Message not sent. Something went wrong. Server &/ or database
         is non-responsive`
-      );
-      return { success: false };
-    }
-
-  }, [gameId, logout, messages, user?._id]);
+        );
+        return { success: false };
+      }
+    },
+    [gameId, logout, messages, user?._id]
+  );
 
   // // a handy utility for use in dev mode.
   // useWhatChanged(
@@ -389,10 +402,10 @@ export default function Game() {
       // chained when used with accessing properties; eg: state?.playersUpdated, me?.color
     } else if (!game) {
       fetchGameBoard(); // this fnc performs navigate inserting playersUpdated into state,
-                        // therefore, playersUpated should be immediately available after this;
-                        // it is at least established before me & otherPlayer are, hence condition chaining is
-                        // mandatory for me & otherPlayer or else errors result. conditional chaining for
-                        // playersUpdate can be omitted it seems from testing, but probably safer to incl. it?
+      // therefore, playersUpated should be immediately available after this;
+      // it is at least established before me & otherPlayer are, hence condition chaining is
+      // mandatory for me & otherPlayer or else errors result. conditional chaining for
+      // playersUpdate can be omitted it seems from testing, but probably safer to incl. it?
       // If game hadn't been preloaded via react router state, fetchGameBoard will set player correctly.
       // A page reload or direct nav will set component game state to undefined, so fetchGameBoard will be triggered.
       // Another reason to run this conditionally is to prevent an infinite loop occurring.
@@ -423,7 +436,7 @@ export default function Game() {
       // and then calls logout() from userProvider, which in turn calls setUser(undefined)
       // which triggers another rerender of Game page and this time the SessionExpired page
       // is rendered which redirects to the home page.
-      // the console.log before window.location.reload cannot be seen in realtime 
+      // the console.log before window.location.reload cannot be seen in realtime
       // due to speed of rerender unless execution is deliberately paused with a break
       // point at window.location.reload, or inside ws.onclose.
       if (
@@ -431,9 +444,9 @@ export default function Game() {
         11000
         // && ws.readyState !== CustomWebSocket.OPEN // tbc, but should not be necessary
       ) {
-        console.log('Game Page Reloading Window')
+        console.log('Game Page Reloading Window');
         window.location.reload();
-        console.log('Game Page has Reloaded Window')
+        console.log('Game Page has Reloaded Window');
         return;
       }
     }, 10000);
@@ -489,8 +502,8 @@ export default function Game() {
           // reset timeout
           this.pingTimeout = setTimeout(() => {
             // The console.log in the callback defined in the pingTimeout property below wont
-            // show because pingTimeout is removed from the websocket in ws.onclose 
-            // before the cb gets a chance to run, though it can be seen at runtime by commenting 
+            // show because pingTimeout is removed from the websocket in ws.onclose
+            // before the cb gets a chance to run, though it can be seen at runtime by commenting
             // out the call to clearTimeout in ws.close
             // - can also do alert('ping timeout occurred; ....' to make the cb execution obvious
             console.log(
@@ -514,8 +527,8 @@ export default function Game() {
               },
             });
             msg = `${
-              data.players.find((p: PlayerDetail) => p.user._id !== user._id).user
-                .userName
+              data.players.find((p: PlayerDetail) => p.user._id !== user._id)
+                .user.userName
             } joined game`;
             notify(msg);
           } else if (data.action === ACTION.REENTER) {
@@ -525,8 +538,8 @@ export default function Game() {
             notify(`${msg} re-entered game`);
           } else if (data.action === ACTION.LEAVE) {
             const msg = `${
-              data.players.find((p: PlayerDetail) => p.user._id !== user._id).user
-                .userName
+              data.players.find((p: PlayerDetail) => p.user._id !== user._id)
+                .user.userName
             } left game`;
             const updatedPlayers = data.players.filter(
               (p: PlayerDetail) => p.user._id !== data.updatedBy
@@ -541,7 +554,7 @@ export default function Game() {
             notify(msg);
             if (game?.selectedPositions.length === 0) {
               setPlayer(
-                // !game.isMulti ? PLAYER.BLACK  // N/A: single player leaves: no opponent to be notified 
+                // !game.isMulti ? PLAYER.BLACK  // N/A: single player leaves: no opponent to be notified
                 // // next move will go to player remaining in game
                 // // as explain above, playersUpated is available before me & otherPlayer are.
                 // // me & otherPlayer are derived from playersUpdated eventually.
@@ -555,9 +568,11 @@ export default function Game() {
                 // // time later than playersUpdated, so decision is to stick with state.playersUpdated.
                 // // Am comfortable omitting conditional chaining because playersUpdated is assigned
                 // // beforehand in the navgiate/ replace mechanism.
-                state.playersUpdated.find((p: PlayerDetail) => p.user._id === user._id)?.color === POSITION_STATUS.BLACK
-                ? PLAYER.BLACK
-                : PLAYER.WHITE
+                state.playersUpdated.find(
+                  (p: PlayerDetail) => p.user._id === user._id
+                )?.color === POSITION_STATUS.BLACK
+                  ? PLAYER.BLACK
+                  : PLAYER.WHITE
               );
             }
           } else if (data.action === ACTION.REST) {
@@ -626,7 +641,7 @@ export default function Game() {
     // state?.players,
     // state?.playersUpdated,
     // state?.game,
-    // me,  
+    // me,
     // me on its own seems to avoid the runtime TypeError: can't access property color, me is undefined
     // me?.color, // otherwise it needs to be conditionally chained
     gameId,
@@ -661,11 +676,11 @@ export default function Game() {
   }
 
   if (!game) {
-    // this will only be entered for a page reload or direct nav. 
+    // this will only be entered for a page reload or direct nav.
     // Coming from Home page with a selected game results in game already being set.
     if (loading) {
       return (
-        <span 
+        <span
           className={style['game-loading-state']}
           style={{ paddingTop: `${(headerHeight ?? 100) / 10 + 0.5}rem` }}
         >
@@ -744,7 +759,7 @@ export default function Game() {
 
     setErrorMessage('');
     // carry out the selection operation and try making all the necessary updates in the database
-    updating.current = true
+    updating.current = true;
     console.log(`in updateGame. updating.current = ${updating.current}`);
     // const newPositions = game.positions.map((p) => {
     //   return p._id === id
@@ -768,12 +783,13 @@ export default function Game() {
     // // this is probably what should be done
     const originalPlayer = player;
     let originalGame = { ...game }; // make a copy of the game as it was before mutation by a move update
-                                    // seems to need assigning here because in catch block it is possibly undefined
-    setGame(game => { // using updater function in case that first part of updateGame undid a failed db update
+    // seems to need assigning here because in catch block it is possibly undefined
+    setGame((game) => {
+      // using updater function in case that first part of updateGame undid a failed db update
       if (game === undefined) return; // some type guarding to protect updater function - should not occur anyway
-                                      // javascript implicitly returns undefined if returning no value
-                                      // so if game is undefined, it stays undefined.
-      originalGame = { ...game } // make a copy of the game again to take into account any reverted failed db update
+      // javascript implicitly returns undefined if returning no value
+      // so if game is undefined, it stays undefined.
+      originalGame = { ...game }; // make a copy of the game again to take into account any reverted failed db update
       const newPositions = game.positions.map((p) => {
         return p._id === id
           ? {
@@ -787,21 +803,23 @@ export default function Game() {
       });
       const newSelectedPositions = [...game.selectedPositions, posId];
       // set positions & selectedPositions ahead of the api call to make it appear more responsive
-      return (
-        { 
-          ...game,  // game is either the original, or original from revert of failed db update
-          positions: newPositions,
-          selectedPositions: newSelectedPositions,
-        }
-      )
-    })
+      return {
+        ...game, // game is either the original, or original from revert of failed db update
+        positions: newPositions,
+        selectedPositions: newSelectedPositions,
+      };
+    });
 
     try {
       // update game in db
-      const result = await put<UpdateGame, GameStatus>(
+      const result = await put<UpdateGameMove, GameStatus>(
         `${API_HOST}/api/game/${gameId}`,
         {
-          id: id,
+          // id: id,
+          action: ACTION.MOVE,
+          input: {
+            id,
+          },
         }
       );
       // setGame({
@@ -810,17 +828,16 @@ export default function Game() {
       //   positions: newPositions, // need to set positions & selectedPositions again
       //   selectedPositions: newSelectedPositions, // otherwise ...game will overwrite them with their original values
       // });
-      setGame(game => {
+      setGame((game) => {
         if (game === undefined) return;
-        return (
-          {
-            ...game, // with updater fnc., game has latest changes from prev batched state update, i.e. the move
-            status: result.status,
-          }
-        )
+        return {
+          ...game, // with updater fnc., game has latest changes from prev batched state update, i.e. the move
+          status: result.status,
+        };
       });
 
       console.log(game);
+      console.table(game);
       // set the player to whatever the server sends back
       setPlayer(result.player);
       updating.current = false;
@@ -837,14 +854,15 @@ export default function Game() {
       });
       // const newSelectedPositions = [...game.selectedPositions, posId];
       const newSelectedPositions = [...originalGame.selectedPositions, posId];
-      setGame({  // an updater function should not be necessary here
+      setGame({
+        // an updater function should not be necessary here
         // ...game,
         ...originalGame,
         positions: newPositions,
         selectedPositions: newSelectedPositions,
       });
-      setPlayer(originalPlayer);  // need to monitor this to see if it is right.
-                                  // might be ok to leave out?
+      setPlayer(originalPlayer); // need to monitor this to see if it is right.
+      // might be ok to leave out?
       updating.current = false;
       if (
         err.message === 'Invalid token' ||
@@ -852,9 +870,9 @@ export default function Game() {
         err.message === 'Invalid user'
       ) {
         setErrorMessage(err.message);
-        console.log('This is in updateGame')
+        console.log('This is in updateGame');
         console.log(`calling logout(), which in turn calls setUser(undefined),
-          then triggers rerender of Game page`)
+          then triggers rerender of Game page`);
         logout();
       }
       setErrorMessage(
@@ -873,46 +891,51 @@ export default function Game() {
     if (updating.current === true) {
       return;
     }
-    const originalGame = { ...game }
+    const originalGame = { ...game };
     const originalPlayer = player;
     try {
       setErrorMessage('');
-      
+
       // updating.current = true;
       resetting.current = true;
       console.log(`in resetGame. updating.current = ${updating.current}`);
       const newPositions = game.positions.map((p) => {
         return { ...p, status: POSITION_STATUS.NONE };
       });
-      setGame({  // an updater function should not be necessary here
+      setGame({
+        // an updater function should not be necessary here
         ...game,
         positions: newPositions,
         selectedPositions: [],
       });
-      // // setPlayer either here or ...     
+      // // setPlayer either here or ...
       // setPlayer(
       //   !game.isMulti ? PLAYER.BLACK // single player game
-      //   // otherwise, can only be one player in game, so hand next move to them 
+      //   // otherwise, can only be one player in game, so hand next move to them
       //   : me.color === POSITION_STATUS.BLACK
       //   ? PLAYER.BLACK
       //   : PLAYER.WHITE
       // );
 
-      const result = await put<ResetGame, GameInfo>(
+      // const result = await put<ResetGame, GameInfo>(
+      const result = await put<UpdateGameReset, GameInfo>(
         `${API_HOST}/api/game/${gameId}`,
         {
-          status: POSITION_STATUS.NONE,
+          // status: POSITION_STATUS.NONE,
+          action: ACTION.RESET,
         }
       );
       setGame(result);
       console.log(game.selectedPositions);
+      console.table(game);
       // // or set Player here??
       setPlayer(
-        !game.isMulti ? PLAYER.BLACK // single player game
-        // otherwise, can only be one player in game, so hand next move to them 
-        : me.color === POSITION_STATUS.BLACK
-        ? PLAYER.BLACK
-        : PLAYER.WHITE
+        !game.isMulti
+          ? PLAYER.BLACK // single player game
+          : // otherwise, can only be one player in game, so hand next move to them
+          me.color === POSITION_STATUS.BLACK
+          ? PLAYER.BLACK
+          : PLAYER.WHITE
       );
       resetting.current = false;
     } catch (err: any) {
@@ -927,12 +950,9 @@ export default function Game() {
   const leaveGame = async () => {
     try {
       setErrorMessage('');
-      await put<EnterLeaveGame, {}>(
-        `${API_HOST}/api/game/${gameId}`,
-        {
-          action: ACTION.LEAVE,
-        }
-      );
+      await put<EnterLeaveGame, {}>(`${API_HOST}/api/game/${gameId}`, {
+        action: ACTION.LEAVE,
+      });
     } catch (err: any) {
       setErrorMessage(err.message);
     }
@@ -1095,14 +1115,19 @@ export default function Game() {
                     id={p._id}
                     posId={idx}
                     positionStatus={p.status}
-                    isLastMove={p._id === game.positions[game.selectedPositions.slice(-1)[0]]?._id}
+                    isLastMove={
+                      p._id ===
+                      game.positions[game.selectedPositions.slice(-1)[0]]?._id
+                    }
                     gameStatus={game.status}
                     addSelectedPosition={updateGame}
                     expandBoard={expandBoard}
                     myTurn={
                       // after create new game when not logged on, me is undefined on nav to the new game page
-                      (player.toString() === me?.color.toString() && !updating.current && !resetting.current) 
-                       || (!game.isMulti && !updating.current && !resetting.current)      // therefore, conditionally chain
+                      (player.toString() === me?.color.toString() &&
+                        !updating.current &&
+                        !resetting.current) ||
+                      (!game.isMulti && !updating.current && !resetting.current) // therefore, conditionally chain
                       // this works too:
                       // (player.toString() ===
                       //  state.playersUpdated?.find((p: PlayerDetail) => p.user._id === user._id).color.toString()
@@ -1110,7 +1135,7 @@ export default function Game() {
                       // one might think the following line would work as is without conditional chaining
                       //  state.players.find((p: PlayerDetail) => p.user._id === user._id).color.toString()
                       // It does not work. It appears initial render precedes establishment of compoonent
-                      // state, and in particulart the state from Location.Provider, i.e. location.state                      
+                      // state, and in particulart the state from Location.Provider, i.e. location.state
                     }
                     updating={updating.current}
                     resetting={resetting.current}

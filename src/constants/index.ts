@@ -23,6 +23,7 @@ export enum ACTION {
   MOVE = 'MOVE',
   REST = 'REST',
   RESET = 'RESET',
+  MSG = 'MSG',
 }
 
 export enum PLAYER_STATE {
