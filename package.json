@@ -68,6 +68,7 @@
     "tmp": "^0.2.4",
     "react-scripts/eslint/**/js-yaml": "^4.1.1",
     "react-scripts/@svgr/webpack/**/js-yaml": "^4.1.1",
-    "react-scripts/babel-jest/**/js-yaml": "^3.14.2"
+    "react-scripts/babel-jest/**/js-yaml": "^3.14.2",
+    "sucrase": "^3.35.1"
   }
 }
