@@ -5,6 +5,7 @@ import { UserContext, GameContext } from '../context';
 import style from './Header.module.css';
 import { POSITION_STATUS } from '../constants';
 import { PlayerDetail } from '../types';
+import { API_HOST } from '../constants';
 
 export default function Header() {
   const navigate = useNavigate();
@@ -74,7 +75,8 @@ export default function Header() {
       case playerColor === POSITION_STATUS.WHITE:
         return style.white;
       default:
-        return style.username;
+        // return style.username;
+        return undefined;
     }
   };
 
@@ -85,17 +87,41 @@ export default function Header() {
   // const headerRef = useRef<JSX.IntrinsicElements['header'] | null>(null);
   const headerRef = useRef<HTMLElement | null>(null);
 
+  const oapiSwaggerLink = () => (
+    <a
+      className={style.anchor}
+      href={`http://${window.location.hostname}:8081/api/api-docs`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      OAPI Swagger UI docs
+    </a>
+  );
+
   return (
     <header ref={headerRef} className={style.header}>
       <div className={style.container}>
-        <Link className={style.link} to="/">
-          Gomoku
-        </Link>
+        {!API_HOST ? (
+          <>
+            <div className={style['title-and-oapi-docs']}>
+              <Link className={style.link} to="/">
+                Gomoku
+              </Link>
+              <div className={style['small-screens']}>{oapiSwaggerLink()}</div>
+            </div>
+            <div className={style['large-screens']}>{oapiSwaggerLink()}</div>
+          </>
+        ) : (
+          <Link className={style.link} to="/">
+            Gomoku
+          </Link>
+        )}
+
         <div className={style['actions-user-detail']}>
           <div className={style.actions}>{getActions()}</div>
           {username && (
             <div className={style.username}>
-              {`Logged in as:`}{' '}
+              {`Logged-in:`}{' '}
               <span
                 className={getClassName(
                   state && (state.playersUpdated || state.players)
